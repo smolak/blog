@@ -1,0 +1,87 @@
+---
+title: "Using TDD to discuss component's API"
+date: '2024-03-01'
+tags: ['TDD', 'API', 'design']
+draft: false
+summary: "How to use writing tests first to approach designing and discussing the design of a component's API."
+---
+
+# Introduction
+
+Not so long ago I was responsible for creating a client for a backend service (component, a chunk of code).
+The client was meant to be simple: some configuration and a single public method on it. Although the task seemed to be
+trivial, I decided to take a bit more effort to try something I haven't done in a while. Test Driven Development (TDD).
+But with little to no implementation. Why? To have a set of tests, showing how it would look like in order to present it
+to the actual users of the client for an early verification of the idea.
+
+## Why TDD?
+
+Before I jump in there, there is one thing you need to remember:
+
+**TDD is a design strategy**
+
+Yes, you use it to create tests. Yes, you use it to create tests first, implementation later. But the main thing is that
+you use it to become the very first user of the thing you're about to build.
+
+Let's take a step back. In order to create a piece of code that you'd enjoy using, or find it intuitive,
+well... you need to use it first to find out if it really is like that.
+
+In a regular software development there is this cycle:
+
+ - you create something and let it out
+ - your users use it and give you feedback
+ - you listen (hopefully), make changes, release again
+ - ... and the cycle repeats itself
+
+With TDD it's the same, but you are all of the actors.
+
+## The work
+
+Like I wrote, I was tasked to build the client and therefore **design** its API. For that I created a test suite
+and began adding stuff to it. I started asking myself:
+
+ - how would I like to have the client to be used?
+ - do I need to pass any configuration to it?
+    - probably some, but not now
+    - I'll figure that out once I will need it (cool, no premature implementation of things I might not use)
+ - perhaps if I started with the business requirements it would become a good first test code implementation?
+    - what are the requirements? Ah, to fetch ... (insert whatever data you'd like to fetch from a service)
+
+And so I began. I was using TypeScript (although, probably vanilla JavaScript would be better, later on that).
+I went with creating an instance of a yet non-existing class and calling a method on it. Oh, and a proper description
+for the test itself. Something along those lines: `getX method returns a collection of X`. Sounds trivial? Good, it will
+be trivial to whomever will read it.
+
+Was it a good idea to go with a class? I did not know yet. It was OK.
+
+Later I created the implementation of the class, with that method, returning nothing. Here's why I believe JS would be
+easier to use. Everytime I changed something, I had to adjust the interface or the fake returned data. Yes, you could
+take shortcuts using `as ...`. But not always.
+
+The business requirements mentioned that the items fetched should be specific for a user.
+
+ - how do I pass the identifier for a user?
+ - can I safely use some ID or approach this differently (Auth header with JWT token)?
+
+Some investigation later I knew the answers and used `userId` on the method. Adjusted the description, the test and the
+implementation. In that order.
+
+OK, I won't bore you with all the details. tl;dr - I did repeat the steps until all the product requirements were covered.
+I followed the cycle, till I was satisfied with the API, the names of things, the way input / output data was sent, etc.
+
+## Presentation
+
+After things were completed, I introduced the proposal for this client to the actual users in a form of a code in repository.
+And the rest is history.
+
+One thing to mention is that our team would be the owner for the client, and we had the final say. That is why the tests
+would not go to waste. And even if they did, all they were was just a description and examples of the proposed implementation.
+Imagine creating the whole thing and then finding out that it's a piece of crap. What a waste that would be.
+
+## Final thoughts
+
+TDD, as a test first technique, helped me picture what I wanted as a user. I wasn't sure if things were good immediately,
+but I wasn't worrying too much, as I refactored as I went on. The most important thing was that I could _try out_ the
+client, before I even began writing any implementation. Product description / acceptance criteria helped as well, with
+the wording / nomenclature. This is important - you should use the language of the domain. Perhaps I will write a separate
+blog post about that.

@@ -9,7 +9,7 @@ const siteMetadata = {
   siteUrl: 'https://jaceksmolak.vercel.app',
   siteRepo: 'https://github.com/smolak/blog',
   siteLogo: '/static/images/logo.png',
-  // socialBanner: '/static/images/twitter-card.png',
+  socialBanner: '/static/images/twitter-card.png',
   // mastodon: 'https://mastodon.social/@mastodonuser',
   email: 'jacek.smolak@gmail.com',
   github: 'https://github.com/smolak',
