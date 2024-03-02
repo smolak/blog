@@ -1,0 +1,65 @@
+---
+title: "Using language of the domain to keep things in order"
+date: '2024-03-02'
+tags: ['domain', 'language', 'naming']
+draft: false
+summary: "Why is it important to use the same vocabulary in the code as the one in verbal communication about the product in the domain."
+---
+
+# Disclaimer
+
+This is not a full-blown description of all the why, what or how. I will write you what I encountered in one codebase
+I was refactoring.
+
+## Offer, product, shop item
+
+(the three could be the same, given some context, but not necessarily)
+
+One of the assignment I had to tackle included refactoring a part of the code, where a list of products was rendered.
+Some business logic was misplaced and had to be moved elsewhere. Anyway, I went to see the tests and I saw something
+along those lines:
+
+```tsx
+// As I don't have access to the original code,
+// this is made up, just to highlight the problem.
+it('should render shop items', async () => {
+    const products = [...];
+
+    render(<ItemsList items={products} />);
+
+    const renderedProducts = await screen.findByRole('listitem');
+
+    // and so on...
+});
+```
+
+As you can see, the same thing has a couple of different names. While the generic `ItemsList` component is fine to use,
+the rest... Either the description should be changed or the implementation. **The vocabulary, the domain specific language should
+be consistent, everywhere**.
+
+When I say product, you know what I mean. When I say shop item, write product, and you read
+list item - which one is which? Which word should I use when I speak to the developer, designer or the domain expert?
+
+**The same, all the time.**
+
+Here's an example how this code should look like:
+
+```tsx
+it('should render products list', async () => {
+    const products = [...];
+
+    render(<ProductsList products={products} />);
+
+    // role is fine, as it follows the ARIA specification
+    const renderedProducts = await screen.findByRole('listitem');
+
+    // and so on...
+});
+```
+## Conclusion
+
+Don't make people think. Be consistent. Don't reinvent concepts, reuse the ones already defined. The code usually
+comes as the last piece. There were discussions, plannings, decisions made long before that. People coined names or used
+the terminology that already describes the domain you work in. Use them. Not sure what to use? Ask around. And so on.
+
+Remember, naming things is hard. Why bother when it's given to you on a plate?
