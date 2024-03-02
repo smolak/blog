@@ -28,10 +28,10 @@ well... you need to use it first to find out if it really is like that.
 
 In a regular software development there is this cycle:
 
- - you create something and let it out
- - your users use it and give you feedback
- - you listen (hopefully), make changes, release again
- - ... and the cycle repeats itself
+- you create something and let it out
+- your users use it and give you feedback
+- you listen (hopefully), make changes, release again
+- ... and the cycle repeats itself
 
 With TDD it's the same, but you are all of the actors.
 
@@ -40,12 +40,12 @@ With TDD it's the same, but you are all of the actors.
 Like I wrote, I was tasked to build the client and therefore **design** its API. For that I created a test suite
 and began adding stuff to it. I started asking myself:
 
- - how would I like to have the client to be used?
- - do I need to pass any configuration to it?
-    - probably some, but not now
-    - I'll figure that out once I will need it (cool, no premature implementation of things I might not use)
- - perhaps if I started with the business requirements it would become a good first test code implementation?
-    - what are the requirements? Ah, to fetch ... (insert whatever data you'd like to fetch from a service)
+- how would I like to have the client to be used?
+- do I need to pass any configuration to it?
+  - probably some, but not now
+  - I'll figure that out once I will need it (cool, no premature implementation of things I might not use)
+- perhaps if I started with the business requirements it would become a good first test code implementation?
+  - what are the requirements? Ah, to fetch ... (insert whatever data you'd like to fetch from a service)
 
 And so I began. I was using TypeScript (although, probably vanilla JavaScript would be better, later on that).
 I went with creating an instance of a yet non-existing class and calling a method on it. Oh, and a proper description
@@ -60,8 +60,8 @@ take shortcuts using `as ...`. But not always.
 
 The business requirements mentioned that the items fetched should be specific for a user.
 
- - how do I pass the identifier for a user?
- - can I safely use some ID or approach this differently (Auth header with JWT token)?
+- how do I pass the identifier for a user?
+- can I safely use some ID or approach this differently (Auth header with JWT token)?
 
 Some investigation later I knew the answers and used `userId` on the method. Adjusted the description, the test and the
 implementation. In that order.
