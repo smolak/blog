@@ -74,13 +74,13 @@ That is why I would suggest the following:
 ### Introduce an explicit return type for all public functions / methods
 
 This will give you the following benefits:
- - keeping you in check - for instance: will I violate [SRP](https://en.wikipedia.org/wiki/Single_responsibility_principle)
-   if I add that change?
+ - keeping you in check, making you reason about the existing implementation; for instance:
+   won't I violate [SRP](https://en.wikipedia.org/wiki/Single_responsibility_principle) if I add that change?
  - IDE will tell you what parts of the codebase will be affected, before you start implementing the change, giving you
    a cheap and quick way to see if this is a reasonable change and does not affect others in a bad way
  - you will have a TS error till you complete the change to honor the interface, and will tell you when you're done; think
    of it as a constant feedback loop
  - you could spot a [code smell](https://en.wikipedia.org/wiki/Code_smell) which might lead you to a better implementation
  - explicit, readable returned interface, one that anyone can inspect (vs implicit one, e.g. from yet another function
-   call)
+   call, or a cascade of calls)
  - and so on...
