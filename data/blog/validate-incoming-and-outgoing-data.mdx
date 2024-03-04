@@ -1,0 +1,110 @@
+---
+title: 'Validate incoming and outgoing data'
+date: '2024-03-04'
+tags: ['validation', 'schema', 'typescript']
+draft: false
+summary: "We all know we can't trust any incoming data. But what about the data we send back?"
+---
+
+# Trust nobody
+
+Any incoming data, especially from 3rd parties, must be validated. Depending on the needs and circumstances, it can be
+done in a form of a type or a runtime validation, or both. The stronger, the better.
+
+## Example
+
+Let's say we have a REST endpoint:
+
+```javascript
+// Imagine this is a backend for frontend, and we're fetching the data
+// from some other API. The architecture doesn't matter here much.
+// `page` comes from pagination params.
+export const getProducts = async ({ categoryId, page }) => {
+    const products = await httpClient.get(
+        `/products?categoryId=${categoryId}&page=${page}`
+    );
+
+    // Let's assume we construct a different data type for returned products
+    return createProductsList(products);
+}
+```
+
+There are a couple of problems here:
+ - `categoryId` most likely is an enum value, or some unique identifier, of a certain type
+    - what if a different type is used?
+    - or someone sends megabytes long string, imagine having this in logs? (OK, that's a different problem, but still)
+ - `page` is expected to be a number, more precisely, and integer, more precisely a positive (0 included, or not, depends
+   on the number the first page will have)
+
+OK, that's a no-brainer.
+
+## But what about the outgoing data?
+
+As you can see from the example above, there's a call to some API being done, from where we fetch the actual data.
+Last time I wrote about [explicit return types](explicit-return-types) which would highlight what the public APIs / functions
+return. Well, what if they don't have that, or they don't do versioning or whatever else (like human error in development)?
+Those things can be hard to find and might not be explicitly logged (or the error messages can suck; I might write about
+that as well).
+
+If the structure of the returned data changes, and you use it to compose the returned value, there are few things that can
+happen:
+ - your application will still work, as you don't rely on the changed data
+ - you will get `undefined` for properties that don't exist anymore (**case 1**)
+ - you will get a runtime error if you will be reaching deeper to nested properties that don't exist (**case 2**)
+
+Well, that suck, doesn't it?
+
+## Solution
+
+### Use validation at the boundaries of your system.
+
+Let's continue with the above example and add validation where necessary.
+
+I will use a remarkable TypeScript-first schema declaration and validation library, that I highly recommend - [zod](https://zod.dev).
+
+```typescript
+// Typescript this time, for safety during development,
+// and a first line of defense - during development.
+// `Payload` and `ProductsList` come from zod schemas.
+export const getProducts = async (payload: Payload): ProductsList => {
+    // Checking the incoming data, at the boundary of our function.
+    // Using safeParse to eventually `trim` or alike clean some incoming data
+    // before validation.
+    const payloadCheck = payloadSchema.safeParse(payload);
+
+    if (!payloadCheck.success) {
+        // Throw a generic error or however else you want.
+        // Doesn't matter for this example.
+        throw new Error(payloadCheck.error);
+    }
+
+    // Now we have a guarantee the incoming data is OK.
+    const { categoryId, page } = payloadCheck.data;
+
+    // Intentionally use different name, because we don't have a guarantee
+    // of it being what we expect.
+    const maybeProducts = await httpClient.get(
+        `/products?categoryId=${categoryId}&page=${page}`
+    );
+
+    // Another boundary - with an external system
+    const productsListCheck = productsListSchema.safeParse(maybeProducts);
+
+    if (!productsListCheck.success) {
+        throw new Error(productsListCheck.error);
+    }
+
+    // Again, we have a guarantee that the data is of correct type.
+    // This time we can even drop the additional function, and use
+    // zod for data transformation.
+    const productsList = productsListCheck.data;
+
+    // And thus the last boundary is also guaranteed to be covered,
+    // the outgoing one, which goes for cases 1 and 2.
+    return productsList;
+}
+```
+
+Now this looks more rock-solid.
+
+Stay safe, and validate your data!
