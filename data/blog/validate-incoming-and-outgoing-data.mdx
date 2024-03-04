@@ -33,8 +33,8 @@ There are a couple of problems here:
  - `categoryId` most likely is an enum value, or some unique identifier, of a certain type
     - what if a different type is used?
     - or someone sends megabytes long string, imagine having this in logs? (OK, that's a different problem, but still)
- - `page` is expected to be a number, more precisely, and integer, more precisely a positive (0 included, or not, depends
-   on the number the first page will have)
+ - `page` is expected to be a number, more precisely - an integer, more precisely - a non-negative integer (0 included, or
+    not, depends on the number the first page will have)
 
 OK, that's a no-brainer.
 
@@ -46,8 +46,8 @@ return. Well, what if they don't have that, or they don't do versioning or whate
 Those things can be hard to find and might not be explicitly logged (or the error messages can suck; I might write about
 that as well).
 
-If the structure of the returned data changes, and you use it to compose the returned value, there are few things that can
-happen:
+If the structure of the returned data from that 3rd party changes, and you use it to compose the returned value, there
+are few things that can happen:
  - your application will still work, as you don't rely on the changed data
  - you will get `undefined` for properties that don't exist anymore (**case 1**)
  - you will get a runtime error if you will be reaching deeper to nested properties that don't exist (**case 2**)
