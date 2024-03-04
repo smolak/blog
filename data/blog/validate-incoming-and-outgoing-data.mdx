@@ -65,7 +65,7 @@ I will use a remarkable TypeScript-first schema declaration and validation libra
 ```typescript
 // Typescript this time, for safety during development,
 // and a first line of defense - during development.
-// `Payload` and `ProductsList` come from zod schemas.
+// `Payload` and `ProductsList` are inferred from schemas.
 export const getProducts = async (payload: Payload): ProductsList => {
     // Checking the incoming data, at the boundary of our function.
     // Using safeParse to eventually `trim` or alike clean some incoming data
