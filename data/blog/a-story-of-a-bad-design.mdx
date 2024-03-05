@@ -1,0 +1,104 @@
+---
+title: 'A story of a bad design'
+date: '2024-03-04'
+tags: ['application', 'design', 'interface', 'API']
+draft: false
+summary: "Why mutually exclusive arguments are perhaps not the best of ideas. And how to avoid that."
+---
+
+# _"bad"_
+
+> failing to reach an acceptable standard : POOR
+
+Source: https://www.merriam-webster.com/dictionary/bad
+
+## Context
+
+In one of the projects, the component we were working on was supposed to log some things, but only on production.
+So we had to pass it some information about that environment. We thought `isProduction` is fine, for now.
+
+```typescript jsx
+<Component isProduction />
+```
+
+Since logging was an internal part, not something someone should control from the outside, we thought it's fine to have it
+implemented like this.
+
+But then there was a doubt: what if we wanted to log in some other environments? Or in a different way? E.g. on staging
+we would log everything, but on production we would log only errors.
+
+There was a proposal to have environmental-specific properties being passed to the component depending on the environment
+the component was used in. So, for example:
+
+```typescript jsx
+// Staging
+<Component isStaging />
+
+// Production
+<Component isProduction />
+
+// and so on
+```
+
+Then I raised a question: what is stopping someone from using both `isStaging` and `isProduction` at the same time?
+And, what if we will have more environments in the future to support?
+
+## What if?
+
+One of the proposals was to keep the separate properties, but make them mutually exclusive. So, if `isStaging` is set,
+`isProduction` would be ignored. And vice versa. And there would be some strategy to handle this.
+
+But the more I thought about it, the more I realized that this is a bad idea. It's a bad design.
+
+Why? Because it's not clear when:
+ - both are set
+ - none is set
+ - both are set to `true`
+ - both are set to `false`
+
+And now add more combinations for more environments.
+
+Sure, you can get some very smart TypeScript to help you with that, but it's not about the code. It's about the
+interface. It's about the API.
+
+You also need to take into account that the component might be used in different ways, and by different people.
+For instance, the boolean properties can be dynamically set based on some conditions. And you can't control that other
+than in runtime. And that is already too late.
+
+## What if?
+
+But if this is about logging, why not just pass the logging strategy to the component? Like, `shouldLog`?
+
+No, this has been already decided upon. That functionality should not be controlled from the outside. What if we log too much
+on production, where the traffic is high? What if we log too little on staging, where we need to debug things?
+
+But let's say we do. How do we tell the component what we want to log? We can pass e.g. `logLevel`, but what if that is
+not enough and there is more logic to it. The component's API will grow and grow and grow. Sure, we can put all that configuration
+in an object and pass it as a single property, but it's just a workaround. It's not a solution.
+
+## Proposed solution
+
+The solution was to have a single property, `environment`, that would accept a string. And then the component would
+decide what to do based on that string. The `environment` property could decide what to log, how to log, and when to log.
+And could control more things in the future or ones needed to be implemented right now.
+
+You can ask, but what if we already have a logger interface? Then provide additional `logger` property, but keep the
+`environment` property, to call the right method on the logger.
+
+## What if?
+
+There is one more thing to consider (well, there are probably more, but this is not a ultimate guide to good component
+API design).
+
+What if someone passes a wrong `environment` value? What if someone passes an empty string? What if someone passes a string
+that is not supported?
+
+Nothing. Or something. Depends on the business needs. We can validate and react accordingly. Or, since we want to log
+only on production and staging, we can just ignore anything that is not `production`, nor `staging`. Simple as that.
+
+## Conclusion
+
+The API of a component is important. It's not just about the code. It's about the interface. It's about the developer experience,
+the maintainability, the scalability. And about not introducing breaking changes.
+
+On the other hand, don't do too abstract APIs. Don't overengineer. Don't make it too complex. Don't make it too simple.
