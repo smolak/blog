@@ -43,12 +43,12 @@ the component was used in. So, for example:
 Then I raised a question: what is stopping someone from using both `isStaging` and `isProduction` at the same time?
 And, what if we will have more environments in the future to support?
 
-## What if?
+## Proposal
 
-One of the proposals was to keep the separate properties, but make them mutually exclusive. So, if `isStaging` is set,
+The proposal was to still keep the separate properties, but make them mutually exclusive. So, if `isStaging` is set,
 `isProduction` would be ignored. And vice versa. And there would be some strategy to handle this.
 
-But the more I thought about it, the more I realized that this is a bad idea. It's a bad design.
+But the more I thought about it, the more I realized that this is a bad idea. **It's a bad design.**
 
 Why? Because it's not clear when:
  - both are set
@@ -79,22 +79,23 @@ in an object and pass it as a single property, but it's just a workaround. It's 
 ## Proposed solution
 
 The solution was to have a single property, `environment`, that would accept a string. And then the component would
-decide what to do based on that string. The `environment` property could decide what to log, how to log, and when to log.
-And could control more things in the future or ones needed to be implemented right now.
+decide what to do based on that string. The `environment` property value could decide what to log, how to log, and when to log.
+And could control more things we would need to implement based on the environment, as well some new ones in the future.
+A scalable solution.
 
 You can ask, but what if we already have a logger interface? Then provide additional `logger` property, but keep the
 `environment` property, to call the right method on the logger.
 
 ## What if?
 
-There is one more thing to consider (well, there are probably more, but this is not a ultimate guide to good component
+There is one more thing to consider (well, there are probably more, but this is not an ultimate guide to good component
 API design).
 
 What if someone passes a wrong `environment` value? What if someone passes an empty string? What if someone passes a string
 that is not supported?
 
 Nothing. Or something. Depends on the business needs. We can validate and react accordingly. Or, since we want to log
-only on production and staging, we can just ignore anything that is not `production`, nor `staging`. Simple as that.
+only on production and staging, we can just ignore anything that is neither `production`, nor `staging`. Simple as that.
 
 ## Conclusion
 
