@@ -3,7 +3,8 @@ const siteMetadata = {
   title: 'Jacek Smolak Blog',
   author: 'Jacek Smolak',
   headerTitle: 'Jacek Smolak Blog',
-  description: 'I write about IT and stuff. What I do, how I do it.',
+  description:
+    'I write about programming and stuff. What I do, how I do it, what I think about it.',
   language: 'en-us',
   theme: 'system', // system, dark or light
   siteUrl: 'https://jaceksmolak.vercel.app',
