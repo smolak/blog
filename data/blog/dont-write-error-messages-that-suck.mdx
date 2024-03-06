@@ -38,7 +38,7 @@ That sucks.
 
 ## Change "something" to something meaningful
 
-> "We could not process the payment."
+> We could not process the payment.
 
 Better. Now I know what went wrong.
 
@@ -47,11 +47,11 @@ But I still need to check my bank account. I still need to check the logs. I sti
 Why?
 
 Do I know if the money went through? If so, we charged the customer without giving them the goods they ordered.
-If that had happened, this would have been even worse.
+If that had happened, we're in trouble.
 
 And for the programmer?
 
-> "The payment could not be processed. Payment gateway connection timeout."
+> The payment could not be processed. Payment gateway connection timeout.
 
 Better. Now I know what went wrong, and I know where to look. But I still need to check the logs, and I still need to check
 the code, because I don't know if the payment went through and the timeout is for the response or if the money did not go in
@@ -59,7 +59,7 @@ at all.
 
 ## Add reassurance
 
-> "We could not process the payment. Don't worry, you have not been charged."
+> We could not process the payment. Don't worry, you have not been charged.
 
 Better. Now I know what went wrong, and I know that I don't have to check my bank account.
 (you could, just to be sure...)
@@ -68,14 +68,14 @@ But what do I do now? Do I try again? Do I contact support? Do I give up? Do I s
 
 What about the programmer?
 
-> "The payment could not be processed. Payment gateway connection timeout. The payment has not been processed."
+> The payment could not be processed. Payment gateway connection timeout. The payment has not been processed.
 
 Of course, this can be shortened with some error codes, especially when there are a gazillion of things going on,
 but you get the point.
 
 ## Add instructions
 
-> "We could not process the payment. Don't worry, you have not been charged. Please try again."
+> We could not process the payment. Don't worry, you have not been charged. Please try again.
 
 Great. Now I know what went wrong, I know that I don't have to check my bank account, and I know what to do next.
 
@@ -88,22 +88,22 @@ Let's focus on the user from now on.
 
 Yes, we can.
 
-> "We could not process the payment. Don't worry, you have not been charged. Please try again. If the problem persists,
-> contact support."
+> We could not process the payment. Don't worry, you have not been charged. Please try again. If the problem persists,
+> contact support.
 
 ## Can we do even better?
 
 Yes, of course.
 
-> "We could not process the payment. Don't worry, you have not been charged. Please try again. If the problem persists,
-> contact support. Error code: 1234."
+> We could not process the payment. Don't worry, you have not been charged. Please try again. If the problem persists,
+> contact support. Error code: 1234.
 
 ## Is that all?
 
 No, it's not.
 
-> "We could not process the payment. Don't worry, you have not been charged. Please try again. If the problem persists,
-> contact support. Error code: 1234. Use our chat support for faster response or call us at 123-456-789."
+> We could not process the payment. Don't worry, you have not been charged. Please try again. If the problem persists,
+> contact support. Error code: 1234. Use our chat support for faster response or call us at 123-456-789.
 
 Now the user has all the information they need. They know what went wrong, they know what to do next, they know what to do
 if the problem persists, they know what to do if they need help, and they know how to get help faster.
