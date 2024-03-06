@@ -1,0 +1,114 @@
+---
+title: "Don't write error messages that suck"
+date: '2024-03-06'
+tags: ['programming', 'naming things', 'errors']
+draft: false
+summary: '"Something went wrong, please try again." - Meaning what?'
+---
+
+# Evolution of an error message
+
+Let's take a look at this error message:
+
+> Something went wrong.
+
+We've all seen it, we've all experienced it. It's poor, it's not helpful, it's not informative, it's not reassuring,
+it's not good. It's terrible.
+
+I will try to make it better. But first, let's see what's wrong with it.
+
+_"Something"_ - what is that something? Do I need to know what? The vast majority of the time, yes. If I don't know what
+went wrong, I can't fix it.
+
+Let's now look at this from the perspective of a user of a system and the creator of the same system.
+
+### User
+
+Let's say I was paying for a ticket to the movies. I entered my credit card details, clicked "Pay", and then I got this message.
+Did my money go through? Did I pay for the ticket? Did I not? I don't know. I have to check my bank account, and so on.
+I have to do more work than I should have to. I have to do the work the system should have done for me.
+
+### Programmer
+
+Let's say I was working on a system that was supposed to send an email to the user after they paid for the ticket.
+I got this message. What do I do? I have to check the logs. I have to check the code. I have to check the email service.
+I have to do more work than I should have to. I have to do the work the system should have done for me.
+
+That sucks.
+
+## Change "something" to something meaningful
+
+> "We could not process the payment."
+
+Better. Now I know what went wrong.
+
+But I still need to check my bank account. I still need to check the logs. I still need to check the code.
+
+Why?
+
+Do I know if the money went through? If so, we charged the customer without giving them the goods they ordered.
+If that had happened, this would have been even worse.
+
+And for the programmer?
+
+> "The payment could not be processed. Payment gateway connection timeout."
+
+Better. Now I know what went wrong, and I know where to look. But I still need to check the logs, and I still need to check
+the code, because I don't know if the payment went through and the timeout is for the response or if the money did not go in
+at all.
+
+## Add reassurance
+
+> "We could not process the payment. Don't worry, you have not been charged."
+
+Better. Now I know what went wrong, and I know that I don't have to check my bank account.
+(you could, just to be sure...)
+
+But what do I do now? Do I try again? Do I contact support? Do I give up? Do I still have my reservation?
+
+What about the programmer?
+
+> "The payment could not be processed. Payment gateway connection timeout. The payment has not been processed."
+
+Of course, this can be shortened with some error codes, especially when there are a gazillion of things going on,
+but you get the point.
+
+## Add instructions
+
+> "We could not process the payment. Don't worry, you have not been charged. Please try again."
+
+Great. Now I know what went wrong, I know that I don't have to check my bank account, and I know what to do next.
+
+I will skip the programmer's part because the journey of the request is far too complex and goes through many systems.
+At this point, the programmer should have enough information to know what to do, and where to look. Most likely there would
+be some stack trace or error code that would help them pinpoint the issue. If not, that's a different problem.
+Let's focus on the user from now on.
+
+## Can we do better?
+
+Yes, we can.
+
+> "We could not process the payment. Don't worry, you have not been charged. Please try again. If the problem persists,
+> contact support."
+
+## Can we do even better?
+
+Yes, of course.
+
+> "We could not process the payment. Don't worry, you have not been charged. Please try again. If the problem persists,
+> contact support. Error code: 1234."
+
+## Is that all?
+
+No, it's not.
+
+> "We could not process the payment. Don't worry, you have not been charged. Please try again. If the problem persists,
+> contact support. Error code: 1234. Use our chat support for faster response or call us at 123-456-789."
+
+Now the user has all the information they need. They know what went wrong, they know what to do next, they know what to do
+if the problem persists, they know what to do if they need help, and they know how to get help faster.
+
+## Conclusion
+
+Error messages are not something to be trivial about. They are important for the user, and they are also important for
+the programmer. Remember, happy users are returning users, and happy programmers are productive programmers.
