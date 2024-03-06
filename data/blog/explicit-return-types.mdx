@@ -9,7 +9,7 @@ summary: "I believe it is important to create explicit return types. Here's why.
 ## Word about APIs
 
 Good APIs are versioned (whatever _good_ means). And if so, they should (not guaranteed) retain the interface. They
-shoudl honor the [open-closed principle](https://en.wikipedia.org/wiki/Open–closed_principle): _"software entities
+should honor the [open-closed principle](https://en.wikipedia.org/wiki/Open–closed_principle): _"software entities
 (classes, modules, functions, etc.) should be open for extension, but closed for modification"_.
 Meaning, if some REST API extends (adds new fields to) the data structure it returns, then this is just an extension,
 not a breaking change.
@@ -18,7 +18,7 @@ One more thing to remember - such APIs are consumed by third parties. Changing t
 result in problems. So it's better to keep to versioning rules, e.g. [semver](https://semver.org). But this post is not
 about versioning. The responsibility that comes with breaking changes is. Having that said...
 
-## What about exported functions, public methods?
+## What about exported functions, and public methods?
 
 Let's have a look at this exported function:
 
@@ -37,7 +37,7 @@ This implementation will make the IDE tell us what the return type is, everyone 
 
 ## The problem
 
-What if someone will change it? Let's say, we had to have a pagination data, because of reasons.
+What if someone will change it? Let's say, we had to have pagination data, because of reasons.
 This function would look something like this:
 
 ```typescript
@@ -51,7 +51,7 @@ export const getPaginatedProducts = async () => {
 ```
 
 Now, that function returns `Promise<{ products: Product[], pagination: PaginationData }>`.
-Of course, typescript will see that and will highlight you all the places you need to amend.
+Of course, typescript will see that and will highlight all the places you need to amend.
 
 But you have introduced a breaking change.
 
@@ -61,24 +61,24 @@ unwanted work. And that is a major problem.
 
 ## Suggested approach
 
-Whenever you will find yourself in a need of changing such a code, this is what you should keep in mind:
+Whenever you find yourself in need of changing such a code, this is what you should keep in mind:
  - the return type for the function was designed like that for a reason
  - and as such, won't that break somebody else's implementation?
  - also, do I really want to change this?
- - and if so, am I changing it in a right place?
+ - and if so, am I changing it in the right place?
 
 As we can't version functions (well... sure, perhaps `getProducts2` 😉 just kidding), we could make sure the
 returned type (as well as the arguments interface) are intact within the open-closed principle boundaries.
 That is why I would suggest the following:
 
-### Introduce an explicit return type for all public functions / methods
+### Introduce an explicit return type for all public functions/methods
 
 This will give you the following benefits:
  - keeping you in check, making you reason about the existing implementation; for instance:
    won't I violate [SRP](https://en.wikipedia.org/wiki/Single_responsibility_principle) if I add that change?
  - IDE will tell you what parts of the codebase will be affected, before you start implementing the change, giving you
    a cheap and quick way to see if this is a reasonable change and does not affect others in a bad way
- - you will have a TS error till you complete the change to honor the interface, and will tell you when you're done; think
+ - you will have a TS error till you complete the change to honor the interface and will tell you when you're done; think
    of it as a constant feedback loop
  - you could spot a [code smell](https://en.wikipedia.org/wiki/Code_smell) which might lead you to a better implementation
  - explicit, readable returned interface, one that anyone can inspect (vs implicit one, e.g. from yet another function

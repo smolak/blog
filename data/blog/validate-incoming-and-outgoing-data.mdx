@@ -9,7 +9,7 @@ summary: "We all know we can't trust any incoming data. But what about the data 
 # Trust nobody
 
 Any incoming data, especially from 3rd parties, must be validated. Depending on the needs and circumstances, it can be
-done in a form of a type or a runtime validation, or both. The stronger, the better.
+done in the form of a type, or a runtime validation, or both. The stronger, the better.
 
 ## Example
 
@@ -50,9 +50,9 @@ If the structure of the returned data from that 3rd party changes, and you use i
 are few things that can happen:
  - your application will still work, as you don't rely on the changed data
  - you will get `undefined` for properties that don't exist anymore (**case 1**)
- - you will get a runtime error if you will be reaching deeper to nested properties that don't exist (**case 2**)
+ - you will get a runtime error if you are reaching deeper to nested properties that don't exist (**case 2**)
 
-Well, that suck, doesn't it?
+Well, that sucks, doesn't it?
 
 ## Solution
 
@@ -81,7 +81,7 @@ export const getProducts = async (payload: Payload): ProductsList => {
     // Now we have a guarantee the incoming data is OK.
     const { categoryId, page } = payloadCheck.data;
 
-    // Intentionally use different name, because we don't have a guarantee
+    // Intentionally use a different name, because we don't have a guarantee
     // of it being what we expect.
     const maybeProducts = await httpClient.get(
         `/products?categoryId=${categoryId}&page=${page}`
@@ -94,7 +94,7 @@ export const getProducts = async (payload: Payload): ProductsList => {
         throw new Error(productsListCheck.error);
     }
 
-    // Again, we have a guarantee that the data is of correct type.
+    // Again, we have a guarantee that the data is of the correct type.
     // This time we can even drop the additional function, and use
     // zod for data transformation.
     const productsList = productsListCheck.data;
