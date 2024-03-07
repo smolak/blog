@@ -1,0 +1,57 @@
+---
+title: 'Margins are not scalable'
+date: '2024-03-07'
+tags: ['CSS', 'design', 'anti-pattern']
+draft: false
+summary: "Let me stretch my arms and legs (pun intended), and I will tell you why margins are not scalable."
+---
+
+# margin: 10px
+
+This is a pretty normal CSS styling. Let's imagine we have some element, an image, and we want to give it some breathable
+space around. OK, fair. Especially when we render a list of images, we will get them spaced evenly, both horizontally and
+vertically.
+
+And that's it. I really can't defend this setting anymore. Let's break it quickly.
+
+## The problem
+
+> Hey, Jacek, let's reuse that component of yours. But, for this list I need 15px space around the images. Can you do it?
+
+Hmm... sure. I'll target the children of the list and set the margin to 15px. Done.
+
+Great, but now I have two margin definitions. One for 10px and one for 15px. Perhaps it's a smell? (yes, it is)
+
+> Hey, Jacek, but ... when the items wrap, the space between them is not consistent. Can you fix it?
+
+OK, different top, different right, different bottom, and for the last element in the row, which I need to
+hardcode, nth-child(), or whatever, I need to set negative right, etc. Perhaps not exactly like that, but you get the point.
+And now we have 4 settings for margin + the last in the row.
+
+> Hey, Jacek, but ... when we change the width of the container, the space between the items is not consistent. Can you fix it?
+
+... and so on.
+
+## Solution
+
+There is no one solution, but there is one general rule of thumb/guideline:
+
+### Child should not be aware of the parent's layout
+
+Meaning, they, the child elements, should only occupy the space they need, and the parent should take care of the
+layout/spacing around them.
+
+Children themselves shouldn't know how they are rendered (space-wise), in what context, etc. They shouldn't even know there
+are more children like them. But parents should, and they do, and they should take care of it.
+
+So, instead of all that margin hell, in that particular case, you could use `gap` property, which is a part of the
+`flexbox` and `grid` layout. It's a space between the children, and it's consistent, no matter the width of the container,
+no matter the number of children, no matter the wrapping, etc.
+
+Then, any element, like the image in our case, is reusable in any context. Such solution is scalable.
+
+> What about paddings? Or borders?
+
+Unless this is supposed to be a part of the design of the element, and reused as such everywhere - yes, it's fine.
+Otherwise, it's the same problem. Meaning, you should set the padding for the elements on the list (from the list's
+perspective, the context), not for the elements directly.
