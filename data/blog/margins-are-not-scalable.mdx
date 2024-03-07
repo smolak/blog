@@ -3,7 +3,7 @@ title: 'Margins are not scalable'
 date: '2024-03-07'
 tags: ['CSS', 'design', 'anti-pattern']
 draft: false
-summary: "Let me stretch my arms and legs (pun intended), and I will tell you why margins, and paddings, and some other stuff, are not scalable."
+summary: "Let me stretch my arms and legs (pun intended), and I will tell you why margins, paddings, and some other stuff, are not scalable."
 ---
 
 # margin: 10px
@@ -16,7 +16,7 @@ And that's it. I really can't defend this setting anymore. Let's break it quickl
 
 ## The problem
 
-> Hey, Jacek, let's reuse that component of yours. But, for this list I need 15px space around the images. Can you do it?
+> Hey, Jacek, let's reuse that component of yours. But, for this list, I need 15px space around the images. Can you do it?
 
 Hmm... sure. I'll target the children of the list and set the margin to 15px. Done.
 
@@ -38,7 +38,7 @@ There is no one solution, but there is one general rule of thumb/guideline:
 
 ### Child should not be aware of the parent's layout
 
-Meaning, they, the child elements, should only occupy the space they need, and the parent should take care of the
+Meaning, that they, the child elements, should only occupy the space they need, and the parent should take care of the
 layout/spacing around them.
 
 Children themselves shouldn't know how they are rendered (space-wise), in what context, etc. They shouldn't even know there
@@ -48,10 +48,10 @@ So, instead of all that margin hell, in that particular case, you could use `gap
 `flexbox` and `grid` layout. It's a space between the children, and it's consistent, no matter the width of the container,
 no matter the number of children, no matter the wrapping, etc.
 
-Then, any element, like the image in our case, is reusable in any context. Such solution is scalable.
+Then, any element, like the image in our case, is reusable in any context. Such a solution is scalable.
 
 > What about paddings? Or borders?
 
 Unless this is supposed to be a part of the design of the element, and reused as such everywhere - yes, it's fine.
-Otherwise, it's the same problem. Meaning, you should set the padding for the elements on the list (from the list's
+Otherwise, it's the same problem. Meaning, that you should set the padding for the elements on the list (from the list's
 perspective, the context), not for the elements directly.
