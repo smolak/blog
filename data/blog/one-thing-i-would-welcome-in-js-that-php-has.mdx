@@ -1,0 +1,48 @@
+---
+title: 'One thing I would welcome in JS that PHP has'
+date: '2024-03-08'
+tags: ['JavaScript', 'TypeScript', 'PHP', 'interface']
+draft: false
+summary: "This is not about the language, but something the community created for its users."
+---
+
+# Wild, wild west
+
+Let's agree, JS/TS ecosystem is a mess and there is no consistency. There are many ways to do the same thing, and it's
+hard to find the best one. It's not about the language itself. On top of that, there are very few standards and best practices.
+Or modules that work together through interfaces (not concrete implementations).
+
+## Moving forward through collaboration and standards
+
+This is the motto (my guess) that accompanies one initiative in the PHP community. It's called [PHP-FIG](https://www.php-fig.org/).
+
+The PHP Framework Interoperability Group (PHP-FIG) is a group of people who are trying to standardize the way PHP is used in
+different projects. They are creating standards for things like coding style, autoloading, and interfaces.
+
+Thanks to them we have interoperability between different PHP projects. We can use libraries from different vendors
+without worrying about how they are implemented. We can be sure that they will work together.
+
+## What about TypeScript?
+
+Well, a picture is worth a thousand words:
+
+<div className="flex justify-center items-center">
+    ![We can do this in TS meme](/static/images/we-can-do-this-in-ts-meme.png)
+</div>
+
+But according to my current knowledge there is no such thing 😞 I wish there was.
+
+I know JS/TS is not that heavily class-based like PHP. There are a lot of modules that are built around functions.
+And that's OK. To clarify things, by interface I don't explicitly mean the class interface, but same function names,
+same method names, same arguments and their order, and same return types.
+
+**Wouldn't it be great if:**
+ - all http clients would implement the same interface?
+ - all styling libraries would implement the same interface?
+ - all state management libraries would implement the same interface?
+ - all form libraries would implement the same interface?
+ - ...
+ - all of them would behave and return the same types?
+
+I believe it would. And I believe it would be a great thing for the community. It would make the ecosystem more
+consistent and predictable.
