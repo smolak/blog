@@ -1,0 +1,117 @@
+---
+title: 'The cost of a (bad) variable name'
+date: '2024-07-28'
+tags: ['variable', 'name', 'naming']
+draft: false
+summary: "Why investing in creation of good names for things will pay off in a long run."
+---
+
+> There are only two hard things in Computer Science: cache invalidation and naming things.
+> -- Phil Karlton
+
+In the early days of my career as a software developer I did not buy this statement. How hard can it (naming things) be? Little did I know back then.
+
+## Why do we need good names for things?
+
+As you all know, the code is read more often than it is written. And the code is read by humans, not machines.
+So, it is essential to write code that is easy to read and to understand.
+
+One of the most important aspects of writing readable code is to use good names for things.
+This approach is mostly welcome in Domain Driven Design, where the code should reflect the business domain as closely as possible.
+For instance, if you are working on a project that deals with e-commerce, you should use names like `product`, `order`, `customer`, `price`, etc.
+Technical nomenclature is also welcome, but it should be used in the right context. And it also should be clear and concise.
+
+One might argue that the name of a variable does not matter as long as it is descriptive enough. Well, that is not entirely true.
+
+In this article I will present some of the problems you might encounter, how to avoid them, and a couple of techniques to create good variable names.
+
+## How a variable name can cause problems?
+
+Let's look at a couple of examples:
+
+1. **Unclear purpose of a variable**
+
+Recently, I worked on a project where we had a property named `price`. It was used in a data structure that represented an advertisement.
+The `price` property was supposed to represent the price of the advertisement. However, the context it was used in (an ad for a product on a product shelf) indicated that it was the price of the product, not the advertisement.
+
+Us, the creators of the data, knew what the `price` represented. But the consumers of the data (other parts of the system) did not.
+And they assumed that the `price` represented the price of the product it advertised. Luckily, this was caught in a right moment (during visual testing).
+
+Why am I mentioning this?
+
+Imagine we did not catch this mistake in time. The ad would render a tiny price (imagine something like $0.01) instead of the actual price of the product.
+This could have caused a loss in revenue for the company, as the users could request a refund for the difference in price.
+Loss of trust in the company, loss of revenue, loss of reputation, etc. All because of a bad variable name. Even, if the name was descriptive enough.
+
+How to improve this? Be specific, e.g. use `adPrice` instead of `price`. This way, it is clear that the variable represents the price of the advertisement, not the product.
+
+2. **Unclear unit of a variable**
+
+Let's take a look at a variable named `timeout`. Is it in seconds or milliseconds? This can cause a loss in synchronization, too much or too few data accumulated (over certain period of time), etc.
+
+A very famous example of this is the NASA's Mars Climate Orbiter failure, that happened in 1999.
+A navigation error occurred due to software inconsistencies between metric and imperial unit systems. This caused the orbiter to crash into Mars.
+
+While this can be solved by standardization of values, when you can't do it, it's good to mention the unit in the variable name. E.g. `timeoutInSeconds` or `timeoutInMs`.
+
+3. **Lack of variable name**
+
+Lack of variable name can also cause problems. For instance, if you have a magic number or a magic string in your code, it is better to give it a name.
+
+For instance, what does `timeoutInMs(500)` mean? Why 500 and not 400 or some different value?
+
+Instead, introduce a local variable explaining the meaning of that value and use it, e.g. `timeoutInMs(loadingAnimationDuration)`.
+
+4. **Unclear name**
+
+Abbreviations, for instance, can also be a problem. For instance, `u` for a `User` is perhaps not the best choice. Especially if the variable is used in a global context.
+There are exceptions. For example, `i` for an index is fine in a small context (e.g. in a loop).
+
+And so on.
+
+## How to create good variable names?
+
+There are several ways to create good variable names. Here are some of them:
+
+### 1. Long to short
+
+When you know what given entity (variable/function/...) is supposed to do, follow those steps:
+
+1. Write the long name, long explanation.
+2. Get rid of articles and prepositions (if possible).
+3. Optionally, use the nomenclature of the domain (to compress few words into shorter version).
+
+In other words, it is about compressing the full sentence into a single word or a few words.
+
+**For instance:**
+ - list of images
+ - images list
+ - gallery
+
+Or:
+ - store the result of an expensive function call
+ - store result of function call
+ - memoize
+
+### 2. Use the nomenclature of the domain
+
+Instead of creating a new names for things that already have a name in the domain, use the name from the domain.
+Also, be specific about them. Add context if need be.
+
+**For instance:**
+
+ - `product` instead of `item` (item can be anything, product is specific)
+ - `withdrawal` instead of `transaction` (transaction can be of any type, withdrawal is specific)
+ - `customer` instead of `user` (user can be anyone in the company or outside of it, customer is specific)
+
+### 3. Use tests to unravel the name
+
+When you are not sure what the name should be, write tests that will use the variable/function/... and see what it does.
+Usually what helps me is to give the unit I am about to test a name like `foo`.
+While I add new tests, I begin to see what `foo` does, and this helps me to name it properly. The more cases I add, the
+more the name becomes clearer.
+
+## Final words
+
+Remember, you don't have to spend lots of time coming up with perfect names. Just write good enough names.
+When you'll revisit the code later, you will see if the name can be improved.
