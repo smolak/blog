@@ -1,0 +1,254 @@
+---
+title: 'Introducing stash-it'
+date: '2024-08-31'
+tags: ['stash-it', 'jsr', 'npm', 'module', 'library', 'open-source']
+draft: false
+summary: "I created a library that helps you to store data in any storage. It's called stash-it. And here's why I did it, and why it stands out (I think)."
+---
+
+## What is **stash-it**?
+
+**stash-it** is a key-value storage library, written in TypeScript. Its aim is to have a simple API, be flexible, and to be easily extendable.
+
+The idea behind this library appeared when I was looking for a module to cache some data, in any storage, with possibility to add tags and being able to set ttl.
+Searching through npm, I found a couple of libraries that were close to what I needed, but none of them had all the features I wanted.
+They were either missing something, or were too complex. Long story short, I decided to create my own.
+
+## How does it work?
+
+Let's have a look at a simple example:
+
+```ts
+// 1. Import the main class.
+import { StashIt } from '@stash-it/stash-it';
+
+// 2. Import an adapter. For this example, let's use the memory adapter.
+import { MemoryAdapter } from '@stash-it/memory-adapter';
+
+// 3. Use them together:
+const stash = new StashIt(new MemoryAdapter());
+
+// 4. Use it.
+await stash.setItem('key', 'value');
+
+const item = await stash.getItem('key');
+
+console.log(item.value); // 'value'
+```
+
+That's it. You have stored a value in memory and retrieved it.
+
+## What makes it stand out?
+
+And where are the tags and ttl I mentioned? Bare with me, I'll get to that.
+
+**stash-it** is built around the concept hooking into the lifecycle of available methods. This allows you to modify the
+data before it is stored, or after it is retrieved. To do that, you create (or use existing) plugins.
+
+In order to understand this, let's have a look how a lifecycle of **stash-it**'s methods looks like.
+
+## Lifecycle of methods
+
+There are a handful of methods that **stash-it** exposes. They are:
+
+- `buildKey`
+- `setItem`
+- `getItem`
+- `hasItem`
+- `removeItem`
+- `setExtra`
+- `getExtra`
+
+Each of these can be hooked into.
+
+<aside className='py-0.5 px-5 bg-gray-50 rounded'>
+    What is this `extra`? It's an _extra_ data you can set on the item. E.g. to store tags for the item, or ttl data.
+    (For more information about the interfaces and types, please head out to the [docs](https://jsr.io/@stash-it) and check
+    new posts that will cover the topic)
+</aside>
+
+Each method, when called, goes through a series of steps. These steps are:
+
+1. **Before hook** - this is the first step. It is called before the actual method on the adapter is executed.
+2. **Adapter method call** - step when adapter method (set, get, ... ) is called.
+3. **After hook** - this is the last step. It is called after the method on the adapter is executed.
+4. **Data is returned** - the result of after hook call.
+
+Let's examine `setItem` method:
+
+```ts
+// This is a simplified version of the source-code of this method, to explain the flow.
+// The actual source-code is a bit more complex, but the idea is the same.
+class StashIt {
+  async setItem(key, value) {
+    // 1.
+    const beforeSetItemData = await this.#call(
+      'beforeSetItem', { adapter: this.#adapter, key, value }
+    );
+
+    // 2.
+    const itemSet = await this.#adapter.setItem(
+      await this.buildKey(beforeSetItemData.key), beforeSetItemData.value
+    );
+
+    // 3.
+    const afterSetItemData = await this.#call(
+      'afterSetItem', { adapter: this.#adapter, ...beforeSetItemData, item: itemSet }
+    );
+
+    // 4.
+    return afterSetItemData.item;
+  }
+}
+```
+
+Let's dive in little bit deeper.
+
+### 1. `beforeSetItem` hook
+
+`setItem` method passes the arguments it gets to registered handlers for `beforeSetItem` hook.
+
+Each handler can modify the data, or even stop the execution of the method. As the instance of the adapter is also passed
+to the handler, it can be used to read/write data from/to the storage as well.
+
+If there are no handlers, the data is passed, as is, to the next step.
+
+### 2. Adapter method call
+
+Adapter is called with the data that was passed to it from the result of passing it through the `beforeSetItem` hook.
+This is when the actual data is stored in the storage. The result of this call is passed to the next step.
+
+It uses `buildKey` method to build the key - one that can be hooked into as well.
+Useful in cases when you want to check the key before building it, prefix or suffix it, or even change it completely.
+Later on that.
+
+### 3. `afterSetItem` hook
+
+**stash-it** now passes the data to registered (if any) handlers for `afterSetItem` hook. Again, each handler can modify the data, or stop the execution of the method.
+And again, handlers can use the adapter instance to read/write data from/to the storage.
+
+Running the data through handlers, returns the data that will be finally returned from the `setItem` method call, what happens
+in the final, fourth step.
+
+### 4. Data is returned
+
+As `setItem` method expects to return the item created, it returns it in the end.
+
+This concludes the lifecycle of the `setItem` method.
+
+And where do those handlers come from? They come from **plugins**.
+
+## Plugins
+
+Plugins are the way to extend the functionality of **stash-it**. Right now, you can only create handlers (in plugins) that hook into the
+lifecycle of all methods.
+
+Enough talk, let's create one.
+
+### Creating a plugin
+
+Let's imagine **stash-it** is used widely in an application, and other developers are using it as well.
+And everyone shares the same storage, what is not unusual. That means, if someone stores a value under a key
+that you are using, you might get unexpected results.
+
+**Solution:** allow for namespacing the keys. Or in other words, prefixing the keys with a unique string.
+
+Let's create a plugin that does just that.
+
+```ts
+const createPrefixPlugin = (prefix: string) => {
+  // Add input validation here, omitted for the sake of simplicity
+  return {
+    hookHandlers: {
+      // Key used by the adapter comes from the `buildKey` method,
+      // so we're hooking into this method to prefix it
+      buildKey: async ({ key }) => ({ key: `${prefix}-${key}` }),
+
+      // Setting an item returns the item as a result,
+      // hence we need to strip the prefix before we do that
+      afterSetItem: async (args) => ({
+        ...args,
+        item: { ...args.item, key: args.item.key.replace(`${prefix}-`, "") }
+      }),
+
+      // Same goes for getting an item
+      afterGetItem: async (args) => {
+        // Remember, item might not exist
+        if (args.item) {
+          return {
+            ...args,
+            item: { ...args.item, key: args.item.key.replace(`${prefix}-`, "") }
+          };
+        }
+
+        return args;
+      },
+    },
+  };
+};
+```
+
+Now, if two teams use **stash-it** and the same storage, they can use this plugin to avoid key collisions (in the storage),
+but at the same time, use the non-prefixed keys in their code:
+
+```ts
+// One part of the application
+const stash1 = new StashIt(new AdapterThatSharesStorage());
+const prefixPlugin1 = createPrefixPlugin('team1');
+stash1.registerPlugins([prefixPlugin1]);
+
+// Another part of the application
+const stash2 = new StashIt(new AdapterThatSharesStorage());
+const prefixPlugin2 = createPrefixPlugin('team2');
+stash2.registerPlugins([prefixPlugin2]);
+
+// Now, both teams can use the same storage without worrying about key collisions.
+// Also, they can use the same keys, as they are prefixed with a unique string.
+// And the items returned have keys stripped of that prefix. Magic! ;)
+
+await stash1.setItem('key', 'value1'); // stored under 'team1-key'
+await stash2.setItem('key', 'value2'); // stored under 'team2-key'
+
+const item1 = await stash1.getItem('key');
+const item2 = await stash2.getItem('key');
+
+console.log(item1.value === item2.value); // false
+console.log(item1.value, item2.value); // value1, value2
+console.log(item1.key, item2.key); // key, key
+
+await stash1.removeItem('key');
+
+await stash1.hasItem('key'); // false
+await stash2.hasItem('key'); // true
+```
+
+This is a very brief introduction to **stash-it**. But it hopefully gives you an idea of what it is and how it works.
+
+## Try it out!
+
+The project is still in its early stages, but the core functionality is there. There is no version 1.0.0 yet. For that I need
+your input, so, please start using it!
+
+The project is hosted on [jsr](https://jsr.io) with possibility to be installed through npm, bun, pnpm, and alike.
+
+There are already several adapters and plugins written for it, and more are coming. And some dev tools as well. At the time of writing this, there are:
+
+### Main class:
+ - [@stash-it/stash-it](https://jsr.io/@stash-it/stash-it)
+
+### Adapters:
+ - [@stash-it/memory-adapter](https://jsr.io/@stash-it/memory-adapter)
+ - [@stash-it/sqlite-adapter](https://jsr.io/@stash-it/sqlite-adapter)
+ - [@stash-it/redis-adapter](https://jsr.io/@stash-it/redis-adapter)
+
+### Plugins:
+ - [@stash-it/prefix-suffix-plugin](https://jsr.io/@stash-it/prefix-suffix-plugin)
+ - [@stash-it/ttl-plugin](https://jsr.io/@stash-it/ttl-plugin)
+
+### Tools:
+ - [@stash-it/dev-tools](https://jsr.io/@stash-it/dev-tools)
+
+In the future, I will be sharing more info about the project, and how to use it.
+Like, how to create an adapter, develop a plugin, or deep diving into other parts of the library.
+
+So, stay tuned!
