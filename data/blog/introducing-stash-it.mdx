@@ -69,9 +69,11 @@ Each of these can be hooked into.
 
 Each method, when called, goes through a series of steps. These steps are:
 
-1. **Before hook** - this is the first step. It is called before the actual method on the adapter is executed.
-2. **Adapter method call** - step when adapter method (set, get, ... ) is called.
-3. **After hook** - this is the last step. It is called after the method on the adapter is executed.
+1. **Before hook** - this is the first step. It is called before the actual method on the adapter is executed. This is the
+   modification part before the data is stored/retrieved/...
+2. **Adapter method call** - step when adapter method (set, get, ... ) is called and persists/read/... the data in the storage.
+3. **After hook** - it is called after the method on the adapter is executed. This is the second modification part, after the
+   data is stored/retrieved/...
 4. **Data is returned** - the result of after hook call.
 
 Let's examine `setItem` method:
