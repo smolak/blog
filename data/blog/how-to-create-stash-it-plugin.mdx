@@ -1,0 +1,61 @@
+---
+title: 'How to create stash-it plugin'
+date: '2024-09-16'
+tags: ['stash-it', 'how to', 'plugin']
+draft: false
+summary: "In my last post I introduced stash-it and briefly explained how it works. Now it's time to build a plugin for it."
+---
+
+## Flow of data
+
+Let's take a look at `setItem` method:
+
+```ts
+// 1
+async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
+  // 2
+  await this.#adapter.connect();
+
+  // 3
+  const beforeData = await this.#call("beforeSetItem", { adapter: this.#adapter, key, value, extra });
+
+  // 4
+  const builtKey = await this.#buildKey(beforeData.key);
+
+  // 5
+  const setItem = await this.#adapter.setItem(builtKey, beforeData.value, beforeData.extra);
+
+  // 6
+  const afterData = await this.#call("afterSetItem", {
+    ...beforeData,
+    key: builtKey,
+    adapter: this.#adapter,
+    item: setItem,
+  });
+
+  // 7
+  await this.#adapter.disconnect();
+
+  // 8
+  return afterData.item;
+}
+```
+
+1. Method is called. It expects `key`, `value` and optional `extra` arguments.
+   It's important to know that for all of the methods, the `before...` hook will receive
+   the arguments passed to the method in question. See point #3.
+
+1. Connection to storage is established. Depending on where you will be storing the data, adapter might do
+   something or not. E.g. [MemoryAdapter](https://jsr.io/@stash-it/memory-adapter) doesn't have to connect,
+   but [RedisAdapter](https://jsr.io/@stash-it/redis-adapter) does.
+   This step is not needed for building plugins.
+
+1. Each method has `before...` hook. `setItem` at this poing is executing any registered hook handlers
+   for the `beforeSetItem` hook. All of the methods' `before...` hook handlers get passed the arguments
+   passed to that method, plus the instance of the adapter in use, as for some cases, plugins might
+   need to reach out to the storage to operate on the data.
+
+   In this case, the `setItem` method received `key`, `value` and `extra` (with default `{}` value if not
+   specified). Let's assume we passed `some_key` and `some_value`. That means, each registered handler
+   for this hook will be called with `some_key`, `some_value`, `{}` and `this.#adapter` (reference to
+   the adapter used by StashIt main class).
