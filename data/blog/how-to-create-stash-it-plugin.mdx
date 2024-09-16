@@ -43,24 +43,34 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
 }
 ```
 
-1. ```ts
-   async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
+1. Method is called.
+
+   ```ts
+   async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item>
    ```
 
-   Method is called. It expects `key`, `value` and optional `extra` arguments.
+   It expects `key`, `value` and optional `extra` arguments.
    It's important to know that for all of the methods, the `before...` hook will receive
    the arguments passed to the method in question. See point #3.
 
-1. ```ts
+1. Connection to storage is established.
+
+   ```ts
    await this.#adapter.connect()
    ```
 
-   Connection to storage is established. Depending on where you will be storing the data, adapter might do
+   Depending on where you will be storing the data, adapter might do
    something or not. E.g. [MemoryAdapter](https://jsr.io/@stash-it/memory-adapter) doesn't have to connect,
    but [RedisAdapter](https://jsr.io/@stash-it/redis-adapter) does.
    This step is not directly connected to plugin creation.
 
-1. Each method has `before...` hook. `setItem`, at this point, is executing any registered hook handlers
+1. The `beforeSetItem` hook gets called (thus executing any registered hook hanlers).
+
+   ```ts
+   const beforeData = await this.#call('beforeSetItem', { key, value, extra })
+   ```
+
+   Each method has `before...` hook. `setItem`, at this point, is executing any registered hook handlers
    for the `beforeSetItem` hook. All of the methods' `before...` hook handlers get passed the arguments
    passed to that method. Additionaly, stash-it injects a reference to the adapter in use, as for some cases,
    plugins might need to reach out to the storage to operate on the data.
@@ -114,7 +124,13 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
    As you can see, you can do all types of things in hooks, meaning, you can call all
    methods available on the StashItAdapter interface (see: [types](https://github.com/smolak/stash-it/blob/main/packages/core/src/types.ts)).
 
-1. Building the key. This method takes the `key` value returned from `beforeSetItem`. This is important,
+1. Building the key.
+
+   ```ts
+   const builtKey = await this.#buildKey(beforeData.key)
+   ```
+
+   This method takes the `key` value returned from `beforeSetItem`. This is important,
    as if for some reason, one of the handlers were to alter the key (for whatever the reason), that key
    value is to be used here.
 
