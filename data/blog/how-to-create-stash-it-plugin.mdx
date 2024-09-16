@@ -15,7 +15,7 @@ Let's take a look at `setItem` method first. The rest of the methods behave the 
 which I will explain separately.
 
 ```ts
-// Source of `setItem` method from stash-it v0.1.2 - the currently newest available
+// Source of `setItem` method from stash-it v0.1.3 - the currently newest available
 // The API of the method should not change.
 
 // 1
@@ -24,7 +24,7 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
   await this.#adapter.connect();
 
   // 3
-  const beforeData = await this.#call("beforeSetItem", { adapter: this.#adapter, key, value, extra });
+  const beforeData = await this.#call("beforeSetItem", { key, value, extra });
 
   // 4
   const builtKey = await this.#buildKey(beforeData.key);
@@ -33,12 +33,7 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
   const setItem = await this.#adapter.setItem(builtKey, beforeData.value, beforeData.extra);
 
   // 6
-  const afterData = await this.#call("afterSetItem", {
-    ...beforeData,
-    key: builtKey,
-    adapter: this.#adapter,
-    item: setItem,
-  });
+  const afterData = await this.#call("afterSetItem", { ...beforeData, key: builtKey, item: setItem });
 
   // 7
   await this.#adapter.disconnect();
@@ -59,19 +54,20 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
 
 1. Each method has `before...` hook. `setItem`, at this point, is executing any registered hook handlers
    for the `beforeSetItem` hook. All of the methods' `before...` hook handlers get passed the arguments
-   passed to that method, plus the instance of the adapter in use, as for some cases, plugins might
-   need to reach out to the storage to operate on the data.
+   passed to that method. Additionaly, stash-it injects a reference to the adapter in use, as for some cases,
+   plugins might need to reach out to the storage to operate on the data.
 
    In this case, the `setItem` method received `key`, `value` and `extra` (with default `{}` value if not
    specified). Let's assume we passed `some_key` and `some_value`. That means, each registered handler
-   for this hook will be called with `some_key`, `some_value`, `{}` and `this.#adapter` (reference to
-   the adapter used by StashIt main class).
+   for this hook will be called with `some_key`, `some_value`, `{}` and `adapter`.
 
    What that also means is that each handler must return the same set of data, for it to be able to be
-   passed to another handler. For example:
+   passed to another handler. But not the adapter. Each handler call gets it injected. You only pass around
+   the values used for each hook handler. For example:
 
    ```ts
    // `beforeSetItem` handler example, if it did not do anything
+   // Mentioning `adapter` as it is passed, but you don't need to use it, not pass it further.
    async beforeSetItemHandler({ key, value, extra, adapter }) {
     return { key, value, extra };
    }
@@ -80,7 +76,7 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
    Let's say we wanted to log the value that is passed (for whatever reason):
 
    ```ts
-   async beforeSetItemHandler({ key, value, extra, adapter }) {
+   async beforeSetItemHandler({ key, value, extra }) {
     console.log(value);
 
     return { key, value, extra };
@@ -103,12 +99,12 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
    ```
 
    <aside className="rounded bg-gray-50 px-5 py-0.5 dark:bg-gray-800">
-     Head's up: throwing an error is a good way to terminate the execution of each stash-it's
-     methods.
+     <strong>Head's up:</strong> throwing an error is a good way to terminate the execution of each
+     stash-it's methods.
    </aside>
 
    As you can see, you can do all types of things in hooks, meaning, you can call all
-   methods available on the StashItAdapter interface (see: [types](github.com/smolak/stash-it/blob/main/packages/core/src/types.ts)).
+   methods available on the StashItAdapter interface (see: [types](https://github.com/smolak/stash-it/blob/main/packages/core/src/types.ts)).
 
 1. Building the key. This method takes the `key` value returned from `beforeSetItem`. This is important,
    as if for some reason, one of the handlers were to alter the key (for whatever the reason), that key
@@ -116,11 +112,12 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
 
    At this moment, the `buildKey` hook event handlers are being called. And like with `beforeSetItem`,
    which takes the arguments passed to the `setItm` method, `buildKey` hook takes arguments passed to
-   the `buildKey` stash-it's method, and the reference to the instance of the adapter.
+   the `buildKey` stash-it's method. Again, reference to the adapter is also injected here.
 
    Example:
 
    ```ts
+   // This handler does nothing, simply ilustrating what gets in, and what is expected out.
    async buildKeyHookHandler({ key, adapter }) {
     return { key }
    }
@@ -129,7 +126,7 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
    Let's say, you want to add a prefix (so that every item stored is prefixed with some string):
 
    ```ts
-   async buildKeyHookHandler({ key, adapter }) {
+   async buildKeyHookHandler({ key }) {
     const prefixedKey = `some_prefix_${key}`;
 
     return { key: prefixedKey }
