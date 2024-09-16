@@ -43,11 +43,19 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
 }
 ```
 
-1. Method is called. It expects `key`, `value` and optional `extra` arguments.
+1. ```ts
+   async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
+   ```
+
+   Method is called. It expects `key`, `value` and optional `extra` arguments.
    It's important to know that for all of the methods, the `before...` hook will receive
    the arguments passed to the method in question. See point #3.
 
-1. Connection to storage is established. Depending on where you will be storing the data, adapter might do
+1. ```ts
+   await this.#adapter.connect()
+   ```
+
+   Connection to storage is established. Depending on where you will be storing the data, adapter might do
    something or not. E.g. [MemoryAdapter](https://jsr.io/@stash-it/memory-adapter) doesn't have to connect,
    but [RedisAdapter](https://jsr.io/@stash-it/redis-adapter) does.
    This step is not directly connected to plugin creation.
