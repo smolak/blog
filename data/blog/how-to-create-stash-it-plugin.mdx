@@ -51,8 +51,9 @@ Let's go through each step one by one.
    async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item>
    ```
 
-   It expects `key`, `value` and optional `extra` arguments. It's important to know that for all of the methods,
-   the `before...` hook handlers will receive the arguments passed to the method in question. See point #3.
+   It expects `key`, `value` and optional `extra` arguments (if `extra` is not passed, the default value is used).
+   It's important to know that for all of the methods, the `before...` hook handlers will receive the arguments
+   passed to the method in question. See point #3.
 
 1. Connection to storage is established.
 
@@ -72,9 +73,9 @@ Let's go through each step one by one.
    ```
 
    Each method has `before...` hook. `setItem`, at this point, is executing any registered hook handlers
-   for the `beforeSetItem` hook. All of the methods' `before...` hook handlers get passed the arguments
+   for the `beforeSetItem` hook. All of the handlers get passed the arguments
    passed to that method. Well, the first handler gets exactly the same values as those passed to the
-   `setItem` methods, and any subsequent handlers get values returned by the previously called handlers.
+   `setItem` method, and any subsequent handlers get values returned by the previously called handlers.
    So, if two handlers are registered for this hook, first will get the values as are, process them,
    possibly do something with them, or change them, and pass them further. Next handler uses the passed
    further values. And so on.
@@ -82,12 +83,12 @@ Let's go through each step one by one.
    Additionaly, stash-it injects a reference to the adapter in use, as for some cases,
    plugins might need to reach out to the storage to operate on the data.
 
-   Let's put this together. Let's call `setItem` with `some_key` and `some_value` (`extra` being optional,
-   if not passed, uses `{}` value). That means, first registered handler
-   for this hook will be called with `some_key`, `some_value`, `{}` and `adapter`.
+   Let's put this together. Let's call `setItem` with `some_key` and `some_value`. That means, first registered handler
+   for this hook will be called with `{ key: 'some_key', value: 'some_value', extra: {}, adapter }` (where `adapter`'s value
+   is a reference to the instance of adapter currently in use).
 
    As mentioned, each handler must return the same set of data (data structure), so that if there are more
-   handlers registered, they can use that data.
+   handlers registered, they can use that data. Meaning: `{ key, value, extra }`.
 
    But not the adapter. Each handler call gets it injected, so you don't need to pass it around.
 
@@ -95,13 +96,12 @@ Let's go through each step one by one.
 
    ```ts
    // `beforeSetItem` handler example, if it did not do anything
-   // Mentioning `adapter` as it is passed, but you don't need to use it, not pass it further.
    async beforeSetItemHandler({ key, value, extra, adapter }) {
     return { key, value, extra };
    }
    ```
 
-   Let's say we wanted to log the value that is passed (for whatever reason):
+   Let's say we want to log the value that is passed (for whatever reason):
 
    ```ts
    async beforeSetItemHandler({ key, value, extra }) {
@@ -111,7 +111,7 @@ Let's go through each step one by one.
    }
    ```
 
-   Or when you wanted to check that if the item exists, it throws an error (vecause you should
+   Or you need to check that if the item exists, and if it does, throw an error (because you should
    not overwrite already existing items):
 
    ```ts
@@ -164,6 +164,31 @@ Let's go through each step one by one.
     const prefixedKey = `some_prefix_${key}`;
 
     return { key: prefixedKey }
+   }
+   ```
+
+   Let's combine now prefixing and checking if an item is not being overwritten. If that were the case,
+   you should do the checking for the existence of an item here, as prefixing changes the key, therefore
+   that is the key you're looking the item for.
+
+   ```ts
+   // first handler that gets called
+   async prefixKeyHandler({ key }) {
+     const prefixedKey = `some_prefix_${key}`;
+
+     return { key: prefixedKey }
+   }
+
+   // second handler that gets called
+   async readOnlyHandler({ key }) {
+     // now, the `key` is prefixed and that value is used here
+     const itemExists = await adapter.hasItem(key);
+
+     if (itemExists) {
+       throw new Error('Overwriting items is not allowed!');
+     }
+
+     return { key };
    }
    ```
 
