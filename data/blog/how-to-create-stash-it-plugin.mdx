@@ -43,15 +43,16 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
 }
 ```
 
-1. Method is called.
+Let's go through each step one by one.
+
+1. `setItem` method is called.
 
    ```ts
    async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item>
    ```
 
-   It expects `key`, `value` and optional `extra` arguments.
-   It's important to know that for all of the methods, the `before...` hook will receive
-   the arguments passed to the method in question. See point #3.
+   It expects `key`, `value` and optional `extra` arguments. It's important to know that for all of the methods,
+   the `before...` hook handlers will receive the arguments passed to the method in question. See point #3.
 
 1. Connection to storage is established.
 
@@ -59,12 +60,12 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
    await this.#adapter.connect()
    ```
 
-   Depending on where you will be storing the data, adapter might do
-   something or not. E.g. [MemoryAdapter](https://jsr.io/@stash-it/memory-adapter) doesn't have to connect,
+   Depending on where you will be storing the data, adapter will need to connect to that storage (or not).
+   E.g. [MemoryAdapter](https://jsr.io/@stash-it/memory-adapter) doesn't have to connect,
    but [RedisAdapter](https://jsr.io/@stash-it/redis-adapter) does.
    This step is not directly connected to plugin creation.
 
-1. The `beforeSetItem` hook gets called (thus executing any registered hook hanlers).
+1. The `beforeSetItem` hook gets called (thus executing any registered hook handlers for this hook).
 
    ```ts
    const beforeData = await this.#call('beforeSetItem', { key, value, extra })
@@ -72,16 +73,25 @@ async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
 
    Each method has `before...` hook. `setItem`, at this point, is executing any registered hook handlers
    for the `beforeSetItem` hook. All of the methods' `before...` hook handlers get passed the arguments
-   passed to that method. Additionaly, stash-it injects a reference to the adapter in use, as for some cases,
+   passed to that method. Well, the first handler gets exactly the same values as those passed to the
+   `setItem` methods, and any subsequent handlers get values returned by the previously called handlers.
+   So, if two handlers are registered for this hook, first will get the values as are, process them,
+   possibly do something with them, or change them, and pass them further. Next handler uses the passed
+   further values. And so on.
+
+   Additionaly, stash-it injects a reference to the adapter in use, as for some cases,
    plugins might need to reach out to the storage to operate on the data.
 
-   In this case, the `setItem` method received `key`, `value` and `extra` (with default `{}` value if not
-   specified). Let's assume we passed `some_key` and `some_value`. That means, each registered handler
+   Let's put this together. Let's call `setItem` with `some_key` and `some_value` (`extra` being optional,
+   if not passed, uses `{}` value). That means, first registered handler
    for this hook will be called with `some_key`, `some_value`, `{}` and `adapter`.
 
-   What that also means is that each handler must return the same set of data, for it to be able to be
-   passed to another handler. But not the adapter. Each handler call gets it injected. You only pass around
-   the values used for each hook handler. For example:
+   As mentioned, each handler must return the same set of data (data structure), so that if there are more
+   handlers registered, they can use that data.
+
+   But not the adapter. Each handler call gets it injected, so you don't need to pass it around.
+
+   Let's look at an example:
 
    ```ts
    // `beforeSetItem` handler example, if it did not do anything
