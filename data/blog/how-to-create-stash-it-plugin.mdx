@@ -259,3 +259,28 @@ This method and the hook handlers for it are behaving differently.
 As there is no "before" and "after" (for the key building), as adapter is not in use to build the key, this method
 has only one hook, the `buildKey` one. It was already mentioned and described above. I wanted only to mention
 why it differes from the rest.
+
+## Remaining methods and their hooks
+
+All the remaining methods, meaning: `getItem`, `hasItem`, `removeItem`, `setExtra` and `getExtra` have the same
+`before...` and `after...` hooks. Meaning: `beforeGetItem` and `afterGetItem`, and so on.
+
+The flow and behavior is exactly the same as for the `setItem` method.
+
+The only difference is what gets passed around, as some of the methods use fewer data. For instance:
+
+- `setItem` requires `key`, `value` (and optional `extra`)
+- `getItem`, `hasItem`, `removeItem` and `getExtra` require only the `key` (to get, check, remove and get the extra of the item)
+- `setExtra` requires `key` and `extra` (to set the extra data on the item by its key)
+
+And so, the `before...` hook handlers are passed `key` only, or `key` and `extra`, depending on which method's hook handlers get
+called.
+
+For the `after...`, hook handlers are passed result of getting the item (see types for it), or checking if item exists, or deletion
+result or getting or setting an extra.
+
+And all of them have the adapter injected as well.
+
+Since this is almost the same as it is for the `setItem` method, I won't get through all of them in detail.
+
+## Let's build a plugin
