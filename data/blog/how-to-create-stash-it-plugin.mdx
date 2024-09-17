@@ -196,54 +196,66 @@ Let's go through each step one by one.
 
 1. Setting the item using the adapter.
 
-```ts
-const setItem = await this.#adapter.setItem(builtKey, beforeData.value, beforeData.extra)
-```
+   ```ts
+   const setItem = await this.#adapter.setItem(builtKey, beforeData.value, beforeData.extra)
+   ```
 
-At this point the values to store the item are passed to the adapter, to be stored (in whatever
-storage you're using, be it memory, redis or anything else).
+   At this point the values to store the item are passed to the adapter, to be stored (in whatever
+   storage you're using, be it memory, redis or anything else).
 
-Values used come from:
+   Values used come from:
 
-- result of calling the `beforeSetItem` hook handlers (hence `beforeData.value` and `beforeData.extra` values),
-- result of calling the `buildKey` hook handlers (hence `builtKey` value).
+   - result of calling the `beforeSetItem` hook handlers (hence `beforeData.value` and `beforeData.extra` values),
+   - result of calling the `buildKey` hook handlers (hence `builtKey` value).
 
-The result of setting the item is returned. There are no hooks/handlers at this point.
+   The result of setting the item is returned. There are no hooks/handlers at this point.
 
 1. The `afterSetItem` hook gets called (thus executing any registered hook handlers for this hook).
 
-```ts
-const afterData = await this.#call('afterSetItem', { ...beforeData, key: builtKey, item: setItem })
-```
+   ```ts
+   const afterData = await this.#call('afterSetItem', {
+     ...beforeData,
+     key: builtKey,
+     item: setItem,
+   })
+   ```
 
-This is a similar step to the one with `beforeSetItem`. This time handlers (the first one registered),
-are called with:
+   This is a similar step to the one with `beforeSetItem`. This time handlers (the first one registered),
+   are called with:
 
-- `...beforeSetData` - that means, whatever the result of calling `beforeSetItem` hook handlers is,
-- `key` uses the result of calling `buildKey` hook handlers,
-- `item` uses the value returned by the adapter, which is the item that is stored
+   - `...beforeSetData` - that means, whatever the result of calling `beforeSetItem` hook handlers is,
+   - `key` uses the result of calling `buildKey` hook handlers,
+   - `item` uses the value returned by the adapter, which is the item that is stored
 
-In other words, any last values that went through the hook handlers + result of calling the adapter's method
-are used.
+   In other words, any last values that went through the hook handlers + result of calling the adapter's method
+   are used.
 
-And again, first hook handler gets those values. If there are more registered, they get the values from
-the return of the prevoius one called. Exactly the same behaviour as with prevoius hook handlers calls.
+   And again, first hook handler gets those values. If there are more registered, they get the values from
+   the return of the prevoius one called. Exactly the same behaviour as with prevoius hook handlers calls.
 
 1. Connection to the storage is closed.
 
-```ts
-await this.#adapter.disconnect()
-```
+   ```ts
+   await this.#adapter.disconnect()
+   ```
 
-Depending on where you will be storing the data, adapter will need to disconnect from that storage (or not).
-E.g. [MemoryAdapter](https://jsr.io/@stash-it/memory-adapter) doesn't have to do it,
-but [RedisAdapter](https://jsr.io/@stash-it/redis-adapter) does.
-This step is not directly connected to plugin creation.
+   Depending on where you will be storing the data, adapter will need to disconnect from that storage (or not).
+   E.g. [MemoryAdapter](https://jsr.io/@stash-it/memory-adapter) doesn't have to do it,
+   but [RedisAdapter](https://jsr.io/@stash-it/redis-adapter) does.
+   This step is not directly connected to plugin creation.
 
 1. Finally, the item that got created, and which value got passed through `afterSetItem` hook handler is returned.
 
-```ts
-return afterData.item
-```
+   ```ts
+   return afterData.item
+   ```
 
 And that's it.
+
+## `buildKey` method and hook for it
+
+This method and the hook handlers for it are behaving differently.
+
+As there is no "before" and "after" (for the key building), as adapter is not in use to build the key, this method
+has only one hook, the `buildKey` one. It was already mentioned and described above. I wanted only to mention
+why it differes from the rest.
