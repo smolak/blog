@@ -284,3 +284,18 @@ And all of them have the adapter injected as well.
 Since this is almost the same as it is for the `setItem` method, I won't get through all of them in detail.
 
 ## Let's build a plugin
+
+I mentioned that you can check if item exists, so that if it does, it is not overwritten. So, let's build a plugin that does that.
+
+```ts
+const writeOnlyPlugin = {
+  hookHandlers: {
+    buildKey: async ({ key, adapter }) => {
+      const itemExists = await adapter.hasItem(key)
+
+      if (itemExists) {
+      }
+    },
+  },
+}
+```
