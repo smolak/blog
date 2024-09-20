@@ -271,6 +271,9 @@ And use it:
 // Use whatever adapter you want.
 const stash = new StashIt(new MemoryAdapter())
 stash.registerPlugins([readOnlyPlugin])
+
+await stash.setItem('key', 'value') // OK
+await stash.removeItem('key') // You wished ;)
 ```
 
 As you can see, it doesn't take a lot of code to create a handy functionality.
