@@ -6,7 +6,8 @@ draft: false
 summary: "In my last post I introduced stash-it and briefly explained how it works. Now it's time to build a plugin for it."
 ---
 
-## Flow of data
+In this blogpost I will try to explain the core functionality of stash-it, and what makes it so powerful,
+even with such a small API. I will show you how easy it is to add a new behavior.
 
 ### How data flows through hook handlers
 
@@ -223,7 +224,7 @@ I encourage you to have a look at the source code. It's very simple. Also TypeSc
 I mentioned that you can check if item exists, so that if it does, it is not overwritten. So, let's build a plugin that does that.
 
 ```ts
-const writeOnlyPlugin = {
+const readOnlyPlugin = {
   hookHandlers: {
     beforeSetItem: async ({ key, value, extra, adapter }) => {
       const itemExists = await adapter.hasItem(key)
@@ -250,8 +251,18 @@ const writeOnlyPlugin = {
         throw new Error('Overwriting data in items is not allowed!')
       }
 
-      return { key }
+      return { key, extra }
     },
   },
 }
 ```
+
+And use it:
+
+```ts
+// Use whatever adapter you want.
+const stash = new StashIt(new MemoryAdapter())
+stash.registerPlugins([readOnlyPlugin])
+```
+
+As you can see, it doesn't take a lot of code to create a handy functionality.
