@@ -229,7 +229,7 @@ I encourage you to have a look at the source code. It's very straightforward. Al
 
 ## Let's build a plugin
 
-I mentioned that you can check if item exists, so that if it does, it is not overwritten. So, let's build a plugin that does that.
+I mentioned that you can check if item exists, so that if it does, it is not overwritten. So, let's build a full plugin that does that.
 
 ```ts
 const readOnlyPlugin = {
@@ -274,3 +274,13 @@ stash.registerPlugins([readOnlyPlugin])
 ```
 
 As you can see, it doesn't take a lot of code to create a handy functionality.
+
+I encourage you to write your own plugins to extend the behavior of stash-it.
+
+## Existing plugins (so far)
+
+Here's a list of plugins I created till now:
+
+- [`logger-plugin`](https://jsr.io/@stash-it/logger-plugin) - lets you log, for any hook handler call, to e.g. see how data changes in the lifecycle of each method
+- [`prefix-suffix-plugin`](https://jsr.io/@stash-it/prefix-suffix-plugin) - lets you add namespacing if you need to share the storage and don't want to be limited with `key`s to use
+- [`ttl-plugin`](https://jsr.io/@stash-it/ttl-plugin) - adds functionality to remove items after certain amount of time
