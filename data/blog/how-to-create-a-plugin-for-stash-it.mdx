@@ -1,0 +1,289 @@
+---
+title: 'How to create a plugin for stash-it'
+date: '2024-09-20'
+tags: ['stash-it', 'how to', 'plugin']
+draft: false
+summary: "In my last post I introduced stash-it and briefly explained how it works. Now it's time to build a plugin for it."
+---
+
+In this blogpost I will try to explain the core functionality of stash-it, and what makes it so powerful,
+even with such a small API. I will show you how easy it is to add a new behavior.
+
+### How data flows through hook handlers
+
+First, a bit of general rules/how things work in stash-it:
+
+1. Every hook handler has reference to the adapter injected `{ adapter, ...rest }`. In case you need to do something
+   on the data in the storage (get/set/remove/...).
+1. Every hook handler is expected to return the same set of data its been given (apart from `adapter` - it is not
+   passed further and is injected automatically for every handler call). For example `beforeHasItem` is passed `{ key, adapter }` and is expected
+   to return `{ key }`; `beforeSetItem` is passed `{ key, value, extra, adapter }` and is expected to return `{ key, value, extra }`,
+   and so on. This ensures that multiple handlers registered for given hook will be given the same set of data always.
+
+### Closer look at `setItem`
+
+I will explain `setItem` method, as the rest of the methods you can hook to behave the same way.
+The only difference is the arguments they receive and pass through hook handlers.
+
+```ts
+// 1
+async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item> {
+  // 2
+  await this.#adapter.connect();
+
+  try {
+    // 3
+    const builtKey = await this.#buildKey(key);
+    // 4
+    const beforeData = await this.#call("beforeSetItem", { key: builtKey, value, extra });
+    // 5
+    const setItem = await this.#adapter.setItem(beforeData.key, beforeData.value, beforeData.extra);
+    // 6
+    const afterData = await this.#call("afterSetItem", { ...beforeData, item: setItem });
+    // 7
+    await this.#adapter.disconnect();
+    // 8
+    return afterData.item;
+  } catch (error) {
+    // 9
+    await this.#adapter.disconnect();
+    throw error;
+  }
+}
+```
+
+Let's go through each step one by one.
+
+1. `setItem` method is called.
+
+   ```ts
+   async setItem(key: Key, value: Value, extra: Extra = {}): Promise<Item>
+   ```
+
+   It expects `key`, `value` and optional `extra` arguments (if `extra` is not passed, the default value is used).
+   It's important to know that for all of the methods, the `before...` hook handlers will receive the arguments
+   passed to the method in question.
+
+1. Connection to storage is established.
+
+   ```ts
+   await this.#adapter.connect()
+   ```
+
+   Depending on where you will be storing the data, adapter will need to connect to that storage (or not).
+   E.g. [MemoryAdapter](https://jsr.io/@stash-it/memory-adapter) doesn't have to connect,
+   but [RedisAdapter](https://jsr.io/@stash-it/redis-adapter) does.
+   This step is not directly connected to plugin creation.
+
+1. Building the key.
+
+   ```ts
+   const builtKey = await this.#buildKey(key)
+   ```
+
+   This method takes the `key` value passed to `setItem` method.
+
+   At this moment, the `buildKey` hook handlers are being called (if registered).
+   `buildKey` hook handler is called with `{ key, adapter }`.
+
+   Example:
+
+   ```ts
+   // This handler does nothing, simply ilustrating what gets in,
+   // and what is expected out.
+   async buildKeyHookHandler({ key, adapter }) {
+     return { key }
+   }
+   ```
+
+   Let's say, you want to add a prefix (so that every item stored is prefixed with some string):
+
+   ```ts
+   async buildKeyHookHandler({ key }) {
+     const prefixedKey = `some_prefix_${key}`;
+
+     return { key: prefixedKey }
+   }
+   ```
+
+1. The `beforeSetItem` hook gets called (thus executing any registered handlers for it).
+
+   ```ts
+   const beforeData = await this.#call('beforeSetItem', { key: builtKey, value, extra })
+   ```
+
+   At this point, you can do something with the data that will be used to set the item.
+
+   If the `key` was modified in the `buildKey` step, that value is now used.
+
+   Let's look at an example:
+
+   ```ts
+   // `beforeSetItem` handler example, if it did not do anything
+   async beforeSetItemHandler({ key, value, extra, adapter }) {
+     return { key, value, extra };
+   }
+   ```
+
+   Let's say we want to log the value that is passed (for whatever reason):
+
+   ```ts
+   async beforeSetItemHandler({ key, value, extra }) {
+     console.log(value);
+
+     return { key, value, extra };
+   }
+   ```
+
+   Or you need to check that if the item exists, and if it does, throw an error (because you should
+   not overwrite already existing items):
+
+   ```ts
+   async beforeSetItemHandler({ key, value, extra, adapter }) {
+     const itemExists = await adapter.hasItem(key);
+
+     if (itemExists) {
+       throw new Error('Overwriting items is not allowed!');
+     }
+
+     return { key, value, extra };
+   }
+   ```
+
+   <aside className="rounded bg-gray-50 px-5 py-0.5 dark:bg-gray-800">
+     <strong>Head's up:</strong> throwing an error is a good way to terminate the execution of each
+     stash-it's methods.
+   </aside>
+
+1. Setting the item using the adapter.
+
+   ```ts
+   const setItem = await this.#adapter.setItem(beforeData.key, beforeData.value, beforeData.extra)
+   ```
+
+   As you can see, all the arguments come from `beforeData` which is the data returned from calling
+   the `beforeSetItem` hook handlers.
+
+   The result of setting the item is returned. There are no hooks/handlers at this point.
+
+1. The `afterSetItem` hook gets called (thus executing any registered hook handlers for it).
+
+   ```ts
+   const afterData = await this.#call('afterSetItem', { ...beforeData, item: setItem })
+   ```
+
+   The latest data is used, meaning the one coming from `beforeSetItem` and the item that
+   was just stored.
+
+1. Connection to the storage is closed.
+
+   ```ts
+   await this.#adapter.disconnect()
+   ```
+
+   Depending on where you will be storing the data, adapter will need to disconnect from that storage (or not).
+   E.g. [MemoryAdapter](https://jsr.io/@stash-it/memory-adapter) doesn't have to do it,
+   but [RedisAdapter](https://jsr.io/@stash-it/redis-adapter) does.
+   This step is not directly connected to plugin creation.
+
+1. The item that got created, and which value got passed through `afterSetItem` hook handlers, is returned.
+
+   ```ts
+   return afterData.item
+   ```
+
+1. Error handling
+
+   If at any point an exception is thrown (either by one of the hooks or the adapter), error is caught here,
+   connection is closed (as it could not be closed due to the error) and the error gets rethrown.
+
+And that's it.
+
+### Remaining methods and their hooks
+
+All of them call `buildKey` first.
+
+The remaining methods, meaning: `getItem`, `hasItem`, `removeItem`, `setExtra` and `getExtra` have the same
+`before...` and `after...` hooks. Meaning: `beforeGetItem` and `afterGetItem`, and so on.
+
+The flow and behavior is exactly the same as for the `setItem` method.
+
+The only difference is what gets passed around, as some of the methods use fewer data. For instance:
+
+- `setItem` requires `key`, `value` (and optional `extra`)
+- `getItem`, `hasItem`, `removeItem` and `getExtra` require only the `key` (to get, check, remove and get the extra of the item)
+- `setExtra` requires `key` and `extra` (to set the extra data on the item by its key)
+
+And so, the `before...` hook handlers are passed `key` only, or `key` and `extra`, depending on which method's hook handlers get
+called.
+
+The `after...` hook handlers differ, depending on the method:
+
+- `getItem` will pass `item` that was found (or `undefined` if not)
+- `hasItem` will pass `result` of the check if item exists or not
+- `removeItem` will pass the `result` of removal of the item
+- `setExtra` will pass `extra` that was just set, or `false` if could not be set
+- `getExtra` will pass `extra` that was got, or `undefined` if cound not be found
+
+I encourage you to have a look at the source code. It's very straightforward. Also TypeScript helps a lot with autosuggesting.
+
+## Let's build a plugin
+
+I mentioned that you can check if item exists, so that if it does, it is not overwritten. So, let's build a full plugin that does that.
+
+```ts
+const readOnlyPlugin = {
+  hookHandlers: {
+    beforeSetItem: async ({ key, value, extra, adapter }) => {
+      const itemExists = await adapter.hasItem(key)
+
+      if (itemExists) {
+        throw new Error('Overwriting items is not allowed!')
+      }
+
+      return { key, value, extra }
+    },
+    beforeRemoveItem: async ({ key, adapter }) => {
+      const itemExists = await adapter.hasItem(key)
+
+      if (itemExists) {
+        throw new Error('Removing items is not allowed!')
+      }
+
+      return { key }
+    },
+    beforeSetExtra: async ({ key, extra, adapter }) => {
+      const itemExists = await adapter.hasItem(key)
+
+      if (itemExists) {
+        throw new Error('Overwriting data in items is not allowed!')
+      }
+
+      return { key, extra }
+    },
+  },
+}
+```
+
+And use it:
+
+```ts
+// Use whatever adapter you want.
+const stash = new StashIt(new MemoryAdapter())
+stash.registerPlugins([readOnlyPlugin])
+
+await stash.setItem('key', 'value') // OK
+await stash.removeItem('key') // You wished ;)
+```
+
+As you can see, it doesn't take a lot of code to create a handy functionality.
+
+I encourage you to write your own plugins to extend the behavior of stash-it.
+
+## Existing plugins (so far)
+
+Here's a list of plugins I created till now:
+
+- [`logger-plugin`](https://jsr.io/@stash-it/logger-plugin) - lets you log, for any hook handler call, to e.g. see how data changes in the lifecycle of each method
+- [`prefix-suffix-plugin`](https://jsr.io/@stash-it/prefix-suffix-plugin) - lets you add namespacing if you need to share the storage and don't want to be limited with `key`s to use
+- [`ttl-plugin`](https://jsr.io/@stash-it/ttl-plugin) - adds functionality to remove items after certain amount of time
