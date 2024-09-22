@@ -232,7 +232,9 @@ I encourage you to have a look at the source code. It's very straightforward. Al
 I mentioned that you can check if item exists, so that if it does, it is not overwritten. So, let's build a full plugin that does that.
 
 ```ts
-const readOnlyPlugin = {
+import { type StashItPlugin } from '@stash-it/core'
+
+const plugin: StashItPlugin = {
   hookHandlers: {
     beforeSetItem: async ({ key, value, extra, adapter }) => {
       const itemExists = await adapter.hasItem(key)
