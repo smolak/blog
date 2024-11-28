@@ -1,0 +1,292 @@
+---
+title: 'How to check if MySQL in Docker is ready before interacting with it?'
+date: '2024-11-28'
+tags: ['docker', 'how to', 'MySQL', 'testing']
+draft: false
+summary: 'Can you make dockerized MySQL be ready for interacting with it? Yes, you can. Here's how.'
+---
+
+While working on MySQL adapter for stash-it, I stumbled upon a problem of having a MySQL instance not being ready
+on time to run tests against it. Well... it was a right time to to put the DevOps hat on and do some hacking.
+
+But let me explain the findings and how I got to solve it step by step.
+
+### Setting up dockerized MySQL
+
+First of all, I wanted to have MySQL run inside a Docker. For that I prepared the docker-compose.yaml file:
+
+```yaml
+services:
+  mysql:
+    image: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: dbname
+    ports:
+      - '3306:3306'
+```
+
+Nothing fancy. A quick run:
+
+```sh
+docker compose up
+```
+
+and the DB is up and running. So far, so good.
+
+### Running the tests
+
+As the project is Node-based, I thought that this will work (part of package.json contents):
+
+```json
+{
+  "scripts": {
+    "test": "docker compose up -d && vitest run && docker compose kill && docker compose rm -f"
+  }
+}
+```
+
+A quick explanation:
+
+1. `docker compose up -d` starts the MySQL container in detached mode
+1. `vitest run` runs my tests (that connect to the DB, perform tasks, etc.)
+1. `docker compose kill` immediately stops all running containers (in the context of where the script is executed, in this case, it's what was defined in docker-compose.yaml file)
+1. `docker compose rm -f` forcefully removes stopped containers.
+
+Basically the 2 last steps are a cleanup after the tests run.
+
+Going back to running the tests. When I executed the script:
+
+```sh
+pnpm test
+```
+
+I got a nasty error when my code wanted to connect to the DB. What was going on? Simple - the DB was not ready yet to be interacted with.
+
+### Waiting for the DB to be up and running
+
+In order to know that the DB is ready, I had to come up with a method that:
+
+1. Starts the container
+1. Checks if it is ready
+1. Runs the tests
+1. Cleans up after everything's done
+
+So, I created this script (with a bit of help from ChatGPT).
+I added the explanations and some echo statements to visualize the progress.
+
+```sh
+#!/bin/bash
+
+echo "Starting MySQL using docker-compose..."
+docker-compose up -d mysql
+
+echo "Waiting for MySQL to be ready..."
+MYSQL_HOST="localhost"       # I knew I would run this only locally
+MYSQL_PORT="3306"            # Using the port from docker-compose.yaml
+RETRIES=30                   # Maximum retries before giving up
+SLEEP_TIME=2                 # Time to wait between retries
+
+for ((i=1; i<=RETRIES; i++)); do
+    if nc -z "$MYSQL_HOST" "$MYSQL_PORT"; then
+        echo "MySQL is ready!"
+
+        echo "Running tests..."
+        vitest run
+
+        echo "Cleaning up Docker containers..."
+        docker-compose kill
+        docker-compose rm -f
+        exit 0
+    else
+        echo "MySQL is not ready yet. Retrying in $SLEEP_TIME seconds... ($i/$RETRIES)"
+        sleep $SLEEP_TIME
+    fi
+done
+
+# If we reach here, the database never became ready
+echo "MySQL did not become ready in time. Cleaning up Docker and exiting."
+docker-compose kill
+docker-compose rm -f
+exit 1
+```
+
+The new thing here is `nc -z "$MYSQL_HOST" "$MYSQL_PORT"`.
+
+The `nc` (or netcat) utility is used for just about anything under the sun involving TCP, UDP, or UNIX-domain sockets.
+In other words, I wanted to check if for given host and port my DB is ready.
+
+Nice.... right? (well, no, but later about that)
+
+I saved the file, made it executable `chmod +x run-tests-with-cleanup.sh`, attached it to the `test` script
+
+```json
+"test": "./run-tests-with-cleanup.sh"
+```
+
+and run:
+
+```sh
+pnpm test
+```
+
+And, the same error 😂
+
+What was it this time? The same thing. Only this time we reached the point when the MySQL server was listening,
+but the DB was still not yet ready.
+
+### Wait, hodl it!
+
+A naive approach was to wait some arbitrary time, so I did this:
+
+```sh
+if nc -z "$MYSQL_HOST" "$MYSQL_PORT"; then
+  # Give it a few more seconds to be ready
+  sleep 3
+```
+
+But it turned out not to be deterministic. I had to come up with a better check in the `if` clause.
+
+### DB, are you there?
+
+The simplest solution was to connect to the DB directly and perform a query on it. If it responded with a non error response,
+then all's good.
+
+I updated the script, adding:
+
+```sh
+MYSQL_PASSWORD="rootpassword"
+```
+
+and changing the `if` clasuse to this:
+
+```sh
+if docker exec -it mysql_container mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1"; then
+```
+
+and finally updated the `docker-compose.yaml` file, adding the container name:
+
+```yaml
+container_name: mysql_container
+```
+
+How that new `if` works? It allocates a pseudo-terminal in an interactive mode on a running container (identified by its name, `mysql_container` in this case),
+and executes command `mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1`.
+
+And ... success! Everything worked as expected. MySQL got up, the DB was ready, tests run and passed, and eventually
+docker cleaned up everything.
+
+But I noticed this error (expected), which was a bit noisy and not informative.
+
+```sh
+Waiting for MySQL to be ready...
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2002 (HY000): Can't connect to local MySQL server through socket '/var/run/mysqld/mysqld.sock' (2)
+```
+
+So I decided to send it into the void (`/dev/null`), resulting in:
+
+```sh
+if docker exec -it mysql_container mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" > /dev/null; then
+```
+
+And now, when I executed `pnpm test` everything was clean and nice:
+
+```sh
+Loading environment variables from .env file...
+Starting MySQL using docker-compose...
+[+] Running 1/1
+ ✔ Container mysql_container  Started                                                                        0.1s
+Waiting for MySQL to be ready...
+MySQL is not ready yet. Retrying in 2 seconds... (1/30)
+MySQL is not ready yet. Retrying in 2 seconds... (2/30)
+MySQL is not ready yet. Retrying in 2 seconds... (3/30)
+MySQL is ready!
+Running tests...
+
+(removed logs from runnig tests as it does not matter here)
+
+Cleaning up Docker containers...
+[+] Killing 1/1
+ ✔ Container mysql_container  Killed                                                                         0.2s
+Going to remove mysql_container
+[+] Removing 1/0
+ ✔ Container mysql_container  Removed
+```
+
+### Final touches
+
+I also noticed, that I need to repeat the values I use for username, password, host etc.
+
+A nice, and clean, and a flexible way, is to extract those to the environment variables, as if you decide,
+or are forced, to use different values, you will be able to change them in one place.
+
+Summarizing, this is the final state of the files I created:
+
+**.env**
+
+```sh
+MYSQL_CONTAINER_NAME=mysql_container
+MYSQL_DATABASE=database_name
+MYSQL_USER=root
+MYSQL_ROOT_PASSWORD=rootpassword
+MYSQL_PORT=3306
+```
+
+**docker-compose.yaml**
+
+```yaml
+services:
+  mysql:
+    image: mysql
+    container_name: ${MYSQL_CONTAINER_NAME}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    ports:
+      - '${MYSQL_PORT}:3306'
+```
+
+**run-tests-with-cleanup.sh**
+
+```sh
+#!/bin/bash
+
+if [ -f .env ]; then
+    echo "Loading environment variables from .env file..."
+    source .env
+else
+    echo ".env file not found. Exiting."
+    exit 1
+fi
+
+echo "Starting MySQL using docker-compose..."
+docker-compose up -d mysql
+
+echo "Waiting for MySQL to be ready..."
+RETRIES=30                   # Maximum retries before giving up
+SLEEP_TIME=2                 # Time to wait between retries
+
+for ((i=1; i<=RETRIES; i++)); do
+    if docker exec -it "$MYSQL_CONTAINER_NAME" mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" > /dev/null; then
+        echo "MySQL is ready!"
+
+        echo "Running tests..."
+        vitest run
+
+        echo "Cleaning up Docker containers..."
+        docker-compose kill
+        docker-compose rm -f
+        exit 0
+    else
+        echo "MySQL is not ready yet. Retrying in $SLEEP_TIME seconds... ($i/$RETRIES)"
+        sleep $SLEEP_TIME
+    fi
+done
+
+# If we reach here, the database never became ready
+echo "MySQL did not become ready in time. Cleaning up Docker and exiting."
+docker-compose kill
+docker-compose rm -f
+exit 1
+```
