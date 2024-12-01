@@ -9,13 +9,13 @@ summary: "Can you make dockerized MySQL be ready for interacting with it? Yes, y
 **UPDATE** See the end of the post, for an update.
 
 While working on [MySQL adapter for stash-it](https://jsr.io/@stash-it/mysql-adapter), I stumbled upon a problem of having a MySQL instance not being ready
-on time to run tests against it. Well... it was a right time to to put the DevOps hat on and do some hacking.
+on time to run the tests against it. Well... it was a right time to to put the DevOps hat on and do some hacking.
 
-But let me explain the findings and how I got to solve it step by step.
+In this blog post I will present all the findings and how I got to solve my problem, step by step.
 
 ### Setting up dockerized MySQL
 
-First of all, I wanted to have MySQL run inside a docker container. For that I prepared the docker-compose.yaml file:
+First of all, I wanted to have MySQL running inside a docker container. For that I prepared the docker-compose.yaml file:
 
 ```yaml
 services:
@@ -34,7 +34,7 @@ Nothing fancy. A quick run:
 docker compose up
 ```
 
-and after a few moments, the DB is was and running. So far, so good.
+and after a few moments, the DB was up and running. So far, so good.
 
 ### Running the tests
 
@@ -65,7 +65,7 @@ pnpm test
 
 I got a nasty error when my code wanted to connect to the DB, but the connection was not possible.
 
-What was going on? Simple - the DB was not ready yet to be interacted with.
+What was going on? Simple - the DB was not yet ready to be interacted with.
 
 ### Waiting for the DB to be up and running
 
@@ -136,8 +136,8 @@ pnpm test
 
 And I got the same error 😂
 
-What was it this time? The same thing. Only this time we reached the point when the MySQL server was listening,
-but the DB was still not yet ready.
+What was it this time? The same thing. Only this time we reached the point when MySQL server was listening,
+but the DB was still not ready yet.
 
 ### Wait, hodl it!
 
@@ -180,10 +180,10 @@ and executes command
 
 `mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1`.
 
-And ... success! Everything worked as expected. MySQL got up, the DB was ready, tests run and passed, and eventually
+And ... **success**! Everything worked as expected. MySQL got up, the DB was ready, tests run and passed, and eventually
 docker cleaned up everything.
 
-But I noticed this (expected) error message, which was printed upon each iteration.
+But I noticed this (expected) error message, which was printed upon each "is the DB ready" iteration.
 It was a bit noisy and not informative (as I did not care that the DB is not ready yet).
 
 ```sh
@@ -198,7 +198,7 @@ So I decided to send it into the void (`/dev/null`), resulting in:
 if docker exec -it mysql_container mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" > /dev/null; then
 ```
 
-And now, when I executed `pnpm test` everything was clean and nice:
+And now, when I executed `pnpm test` everything was nice and clean:
 
 ```sh
 Loading environment variables from .env file...
@@ -226,8 +226,8 @@ Going to remove mysql_container
 
 I also noticed, that I need to repeat the values I use for username, password, host etc.
 
-A nice, and clean, and a flexible way, is to extract those to the environment variables. If you decide,
-or are forced, to use different values, you will be able to do so, with a change in one place.
+Environment variables to the rescue. That way, if I decided,
+or were forced, to use different values, I would be able to do so, with a change in one place only.
 
 Summarizing, this is the final state of the files I created:
 
@@ -311,7 +311,7 @@ And that's all. Enjoy!
 
 ## An update
 
-I realized I can make this script be more versatile, by running a command when MySQL is ready, not just unit tests.
+I realized I can make this script be even more versatile, by running "a command" when MySQL is ready, not just unit tests.
 Why is that good? Well, because the above implementation does not allow for e.g. running tests in watch mode.
 
 That is why I changed the script to this:
