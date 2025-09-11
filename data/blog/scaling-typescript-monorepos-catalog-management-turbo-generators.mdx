@@ -1,0 +1,210 @@
+---
+title: "Scaling TypeScript Monorepos: Catalog Management + Turbo Generators"
+date: '2025-08-11'
+tags: ['monorepo', 'scaling', 'dependencies', 'generation']
+draft: false
+summary: "What if you could create new TypeScript packages in your monorepo with a single command, complete with proper testing setup and zero configuration mistakes? I'll show you how PNPM catalogs and custom Turbo generators transformed my monorepo workflow, making dependency management effortless and package creation lightning-fast."
+---
+
+# Scaling TypeScript Monorepos: Catalog Management + Turbo Generators
+
+*How I eliminated version chaos and automated package creation in my TypeScript monorepo*
+
+---
+
+## The Problem: Monorepo Growing Pains
+
+As my TypeScript monorepo grew from a few packages to dozens, I faced two critical challenges:
+
+1. **Version Hell**: Different packages using different versions of the same dependencies, leading to inconsistent behavior and security vulnerabilities.
+2. **Manual Setup Overhead**: Creating new packages required copying boilerplate, remembering all the right configurations, and hoping I didn't miss anything.
+
+Sound familiar? If you're managing a TypeScript monorepo, you've likely encountered these issues. Here's how I solved them.
+
+## Solution 1: Centralized Dependency Management with PNPM Catalogs
+
+### The Challenge
+My `package.json` files looked like this:
+
+```json
+// packages/ui/package.json
+{
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^3.1.0"
+  }
+}
+
+// packages/shared/package.json  
+{
+  "devDependencies": {
+    "typescript": "^5.1.0",  // Different version!
+    "vitest": "^3.2.0"       // Different version!
+  }
+}
+```
+
+### The Solution: PNPM Catalogs
+
+I implemented PNPM's catalog feature to centralize all dependency versions:
+
+```yaml
+# pnpm-workspace.yaml
+catalog:
+  typescript: "5.9.2"
+  vitest: "^3.2.4"
+  jest-extended: "^6.0.0"
+  @types/node: "^22.18.1"
+```
+
+Now all packages reference the catalog:
+
+```json
+// Any package.json
+{
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
+```
+
+### Benefits
+- ✅ **Single source of truth** for all versions
+- ✅ **Consistent behavior** across all packages
+- ✅ **Easy updates** - change once, update everywhere
+- ✅ **Security** - no forgotten outdated dependencies
+
+## Solution 2: Automated Package Generation with Turbo Generators
+
+### The Challenge
+Creating a new package meant:
+1. Creating the directory structure (using turbo generator)
+2. Writing `package.json` with correct dependencies
+3. Setting up `tsconfig.json` with proper paths
+4. Adding `vitest.config.ts` if tests were needed
+5. Remembering all the boilerplate...
+
+And I'd inevitably forget something or make mistakes.
+
+### The Solution: Turbo Generators
+
+I built a custom generator using Turbo's generator system:
+
+```typescript
+// turbo/generators/config.ts
+plop.setGenerator('workspace', {
+  description: 'Create a new workspace with @repo prefix',
+  prompts: [
+    {
+      type: 'input',
+      name: 'name',
+      message: 'Workspace name (without @repo prefix):',
+    },
+    {
+      type: 'list',
+      name: 'type',
+      message: 'What type of workspace?',
+      choices: [
+        { name: 'Package', value: 'package' },
+        { name: 'App', value: 'app' }
+      ]
+    },
+    {
+      type: 'confirm',
+      name: 'hasTests',
+      message: 'Will this workspace include tests?',
+      default: true
+    }
+  ],
+  // ... actions
+});
+```
+
+### Smart Templates
+
+My templates automatically configure everything based on the package type and requirements:
+
+**Package with tests:**
+```json
+// Generated package.json
+{
+  "name": "@repo/new-package",
+  "scripts": {
+    "test": "vitest run"  // Auto-configured!
+  },
+  "devDependencies": {
+    "vitest": "catalog:"  // Uses catalog version
+  }
+}
+```
+
+```typescript
+// Generated tsconfig.json
+{
+  "compilerOptions": {
+    "types": ["vitest/globals"]
+  },
+  "include": [
+    "src/**/*", 
+    "../tests-setup/src/vitest-jest-extended.d.ts"
+  ]
+}
+```
+
+```typescript
+// Generated vitest.config.ts
+export default defineConfig({
+  test: {
+    globals: true,
+    setupFiles: "../tests-setup/src/index.ts",  // Shared test setup
+  },
+});
+```
+
+## The Complete Setup: Jest Extended + Vitest
+
+As a bonus, I also solved TypeScript recognition for Jest Extended matchers:
+
+### The Problem
+```typescript
+expect(id).toBeString(); // ❌ TypeScript error: Property 'toBeString' does not exist
+```
+
+### The Solution
+```typescript
+// packages/tests-setup/src/vitest-jest-extended.d.ts
+declare module "vitest" {
+  interface Assertion<T = unknown> extends jestExtended.Matchers<T> {}
+  interface AsymmetricMatchersContaining extends jestExtended.Matchers {}
+}
+```
+
+Now TypeScript recognizes all Jest Extended matchers! 🎉
+
+## Results: Developer Experience Revolution
+
+### Before
+- 🔴 Inconsistent dependency versions
+- 🔴 Manual package setup (minutes per package)
+- 🔴 Easy to forget configurations
+- 🔴 TypeScript errors with test matchers
+
+### After
+- ✅ All packages use identical dependency versions
+- ✅ New package creation (seconds)
+- ✅ Zero configuration mistakes
+- ✅ Full TypeScript support for all test matchers
+
+## Key Takeaways
+
+1. **Catalogs eliminate version chaos** - One place to manage all dependency versions
+2. **Generators eliminate setup overhead** - Automated, consistent package creation
+3. **Templates are powerful** - Conditional logic based on package requirements
+4. **Developer experience matters** - Small improvements compound over time
+
+## What's Next?
+
+This setup has transformed how I work with my monorepo. New packages are created in seconds, not minutes. Dependencies are always consistent. And I can focus on building features instead of fighting configuration.
+
+Consider implementing these patterns in your own monorepo. The time investment pays dividends as your team and codebase grow.
