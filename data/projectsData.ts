@@ -7,13 +7,20 @@ interface Project {
 
 const projectsData: Project[] = [
   {
-    title: 'stash-it',
-    description: `@stash-it is a simple, yet powerful, key-value storage library. It is designed to be easy to use and
-    to have a clear API. It is also extensible, so you can create your own adapters and use them with @stash-it. 
-    The storage of your choice is not supported (yet)? No problem, you can create an adapter for it and use it with
-    @stash-it.`,
-    imgSrc: '/static/images/stash-it-logo.png',
-    href: 'https://jsr.io/@stash-it/stash-it',
+    title: 'A Search Engine',
+    description: `What if you could look up any information in the world? Webpages, images, videos
+    and more. Google has many features to help you find exactly what you're looking
+    for.`,
+    imgSrc: '/static/images/google.png',
+    href: 'https://www.google.com',
+  },
+  {
+    title: 'The Time Machine',
+    description: `Imagine being able to travel back in time or to the future. Simple turn the knob
+    to the desired date and press "Go". No more worrying about lost keys or
+    forgotten headphones with this simple yet affordable solution.`,
+    imgSrc: '/static/images/time-machine.jpg',
+    href: '/blog/the-time-machine',
   },
 ]
 

@@ -1,1 +1,20 @@
-{"application":1,"design":3,"interface":3,"api":2,"programming":3,"naming-things":1,"errors":1,"typescript":3,"docker":1,"how-to":2,"mysql":1,"stash-it":2,"plugin":1,"jsr":1,"npm":1,"module":1,"library":1,"open-source":1,"css":1,"anti-pattern":1,"ai":1,"future":1,"javascript":1,"php":1,"variable":1,"name":1,"naming":2,"domain":1,"language":1,"tdd":1,"validation":1,"schema":1}
+{
+  "next-js": 6,
+  "tailwind": 3,
+  "guide": 5,
+  "feature": 2,
+  "multi-author": 1,
+  "hello": 1,
+  "math": 1,
+  "ols": 1,
+  "github": 1,
+  "writings": 1,
+  "book": 1,
+  "reflection": 1,
+  "holiday": 1,
+  "canada": 1,
+  "images": 1,
+  "markdown": 1,
+  "code": 1,
+  "features": 1
+}
