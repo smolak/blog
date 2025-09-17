@@ -1,0 +1,273 @@
+---
+title: 'AI-Powered TDD: Why Tests-First Makes AI Your Best Coding Partner'
+date: '2025-09-17'
+tags: ['ai', 'tdd', 'testing', 'programming', 'development']
+draft: false
+summary: "AI can generate tons of code, but how do we make sure it's the right code? The answer isn't restricting AI to simple tasks—it's using tests to clearly communicate exactly what we want."
+---
+
+## The Problem I Keep Seeing
+
+Everyone's talking about AI generating code. GitHub Copilot, ChatGPT, Claude—they're all getting scary good at writing functions, 
+classes, even entire modules. I see developers either falling into two camps: those who think AI will replace us all, and those 
+who refuse to use it because "the code isn't good enough."
+
+Both camps are missing the point.
+
+Here's what I've been experimenting with lately: What if instead of asking AI to write perfect code, we ask it to write 
+code that passes perfect tests?
+
+## AI's Superpower (And Its Kryptonite)
+
+Let's be honest about what AI is great at:
+
+- **Pattern recognition** - It's seen millions of lines of code, both good and terrible
+- **Syntax mastery** - It knows every language quirk and API better than most of us
+- **Speed** - It can write a function faster than I can type the method signature
+- **Iteration** - It doesn't get tired of rewriting the same function 10 times
+
+But here's where it struggles:
+
+- **Intent understanding** - It guesses what you want based on a comment or function name
+- **Context awareness** - It doesn't know your business rules or edge cases
+- **Quality judgment** - It can write working code, but is it the _right_ code?
+
+This is where most people get frustrated. They ask AI to "write a user authentication function" and get something that works 
+for the happy path but falls apart when you actually use it in production.
+
+## The Lightbulb Moment: Tests as Specifications
+
+Instead of treating tests as an afterthought, what if we flip the script entirely?
+
+Here's my approach:
+
+1. **I write comprehensive tests first** (classic TDD)
+2. **AI writes the minimal code to pass those tests**
+3. **AI refactors while keeping tests green**
+4. **Repeat until I'm satisfied**
+
+The key insight: **Tests become my specification language for AI.**
+
+## How This Changes Everything
+
+### Before: Vague Instructions
+
+```typescript
+// Me: "Write a function that validates user input"
+// AI: *writes 50 lines of code that might work*
+// And this is just some example, of course, it can be way better
+// We've all seen the good and the bad code it generates
+
+function validateUser(user) {
+  // AI's interpretation of "validation"
+  if (!user) return false
+  if (!user.email) return false
+  // ... who knows what else
+  return true
+}
+```
+
+### After: Tests as Requirements
+
+```typescript
+// Me: I write these tests first
+describe('validateUser', () => {
+  it('should return true for valid user with email and name', () => {
+    const user = { email: 'test@example.com', name: 'John' }
+    expect(validateUser(user)).toBe(true)
+  })
+
+  it('should return false for user without email', () => {
+    const user = { name: 'John' }
+    expect(validateUser(user)).toBe(false)
+  })
+
+  it('should return false for invalid email format', () => {
+    const user = { email: 'invalid-email', name: 'John' }
+    expect(validateUser(user)).toBe(false)
+  })
+
+  it('should return false for empty name', () => {
+    const user = { email: 'test@example.com', name: '' }
+    expect(validateUser(user)).toBe(false)
+  })
+
+  it('should handle null and undefined gracefully', () => {
+    expect(validateUser(null)).toBe(false)
+    expect(validateUser(undefined)).toBe(false)
+  })
+})
+```
+
+After instructing the AI to generate the implementation, I got:
+
+```typescript
+export function validateUser(user: unknown): boolean {
+  if (!user || typeof user !== "object") {
+    return false;
+  }
+
+  const userObj = user as Record<string, unknown>;
+
+  if (!userObj.email || !userObj.name) {
+    return false;
+  }
+
+  if (userObj.name === "") {
+    return false;
+  }
+
+  // Basic email validation - check if it contains @ and has text before and after
+  const emailRegex = /^[^\s@]+@[^\s@]+$/;
+  if (typeof userObj.email !== "string" || !emailRegex.test(userObj.email)) {
+    return false;
+  }
+
+  return true;
+}
+```
+
+And after telling it to use zod, I got:
+
+```typescript
+import { z } from "zod";
+
+const userSchema = z.object({
+  email: z.email(),
+  name: z.string().min(1),
+});
+
+export function validateUser(user: unknown): boolean {
+  try {
+    userSchema.parse(user);
+    return true;
+  } catch {
+    return false;
+  }
+}
+```
+
+See the difference?
+
+## My TDD + AI Workflow
+
+Here's how I actually work with AI now:
+
+### 1. Write Tests That Tell a Story
+
+I don't just write happy path tests. I write tests that capture:
+
+- **Business rules** - What constitutes valid data in my domain?
+- **Edge cases** - What should happen with null, empty, or malformed input?
+- **Error conditions** - How should failures be handled?
+- **Performance expectations** - Should this be fast? Memory efficient?
+
+### 2. Let AI Write the Minimal Implementation
+
+I give AI the failing tests and say: 
+
+```code
+Write the minimal code to make the tests pass.
+Follow strict TDD: implement ONLY what's needed to make the failing tests green.
+No extra methods, no additional features, no 'future-proofing' - just the bare minimum implementation.
+```
+
+(you can tweak the rules, see my previous post about [Building a Documentation-Driven AI Assistant for my project](/blog/building-a-documentation-driven-ai-assistant-for-my-project))
+
+The magic happens here. AI doesn't over-engineer because the tests constrain it. It can't add unnecessary features 
+because there are no tests for them and AI is forbidden from creating extra functionality.
+
+### 3. Refactor with Confidence
+
+Once tests are green, I ask AI to improve the code:
+
+- "Make this more readable"
+- "Optimize for performance"
+- "Extract common patterns"
+
+The tests act as a safety net (just like they did without AI, back in the days 😉). If AI breaks something during refactoring, the tests catch it immediately.
+
+### 4. The Golden Rule: Never Let AI Touch the Tests
+
+This is crucial. **AI can write implementation, but I own the tests.**
+
+Why? Because tests represent my understanding of the problem. If AI changes the tests, it's changing the requirements, 
+and that's where things go sideways.
+
+Think of it this way: tests are the contract. AI is the contractor. I don't let the contractor rewrite the contract.
+
+
+## Why This Approach Works
+
+### 1. **Clarity of Intent**
+
+Tests force me to think clearly about what I actually want. No more vague "make it work" instructions.
+
+### 2. **Quality Control**
+
+AI can write code that passes tests, but I control what "passing" means through my test design.
+
+### 3. **Iterative Improvement**
+
+I can ask AI to refactor, optimize, or completely rewrite the implementation. As long as tests pass, I know the behavior 
+is preserved.
+
+### 4. **Documentation**
+
+Tests become living documentation of how the code should behave. Future developers (including me in 6 months) can 
+understand the requirements instantly.
+
+### 5. **Confidence in Changes**
+
+When AI suggests improvements or I need to modify behavior, tests tell me immediately if something breaks.
+
+## The Bigger Picture: AI as a Tool, Not a Replacement
+
+Will AI replace programmers? I don't think so. But it will change what we focus on. I wrote a [blog post with my prediction about AI](/blog/my-prediction-regarding-ai).
+I guess I could add this paragraph there as well.
+
+Instead of spending time writing boilerplate and fighting syntax, we'll spend more time on:
+
+- **Understanding problems deeply** (reflected in comprehensive tests)
+- **Designing good interfaces** (tested through usage patterns)
+- **Thinking about edge cases** (captured in test scenarios)
+- **Architecting systems** (tested through integration patterns)
+
+AI becomes our implementation partner, not our replacement. We focus on the "what" and "why," AI handles much of the "how."
+
+## Getting Started: A Practical Approach
+
+If you want to try this approach:
+
+### 1. Start Small
+
+Pick a single function or class. Write comprehensive tests first, then let AI implement it.
+
+### 2. Be Specific in Tests
+
+Don't just test the happy path. Think about:
+
+- What should happen with invalid input?
+- What are the performance characteristics?
+- How should errors be handled?
+- What are the boundary conditions?
+
+### 3. Resist the Urge to Fix AI's Code Directly
+
+If AI's implementation is wrong, don't edit it. Instead, write a test that captures what you want, then ask AI to fix it.
+
+### 4. Iterate
+
+Use AI's speed to your advantage. Try different approaches, refactor aggressively, experiment with optimizations. 
+The tests will keep you safe.
+
+The key insight: **AI doesn't make testing less important—it makes testing more important.**
+
+## The Bottom Line
+
+AI is incredibly good at writing code. But code that works isn't the same as code that solves the right problem correctly.
+
+By writing tests first, I turn AI from a code generator into a code partner. I define the problem clearly through tests, 
+and AI solves it efficiently through implementation.
+
+The result? Better code, faster development, and a lot more confidence in what I ship.

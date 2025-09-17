@@ -1,9 +1,11 @@
 {
-  "ai": 2,
+  "ai": 3,
+  "tdd": 2,
+  "testing": 1,
+  "programming": 5,
+  "development": 2,
   "documentation": 1,
-  "development": 1,
   "architecture": 1,
-  "programming": 4,
   "monorepo": 1,
   "scaling": 1,
   "dependencies": 1,
@@ -36,6 +38,5 @@
   "validation": 1,
   "schema": 1,
   "domain": 1,
-  "language": 1,
-  "tdd": 1
+  "language": 1
 }
