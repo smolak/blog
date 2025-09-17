@@ -3,7 +3,7 @@ title: 'A story of a bad design'
 date: '2024-03-05'
 tags: ['application', 'design', 'interface', 'API']
 draft: false
-summary: "Why mutually exclusive arguments are perhaps not the best of ideas. And how to avoid that."
+summary: 'Why mutually exclusive arguments are perhaps not the best of ideas. And how to avoid that.'
 ---
 
 # _"bad"_
@@ -51,10 +51,11 @@ The proposal was to still keep the separate properties, but make them mutually e
 But the more I thought about it, the more I realized that this was a bad idea. **It's a bad design.**
 
 Why? Because it's not clear when:
- - both are set
- - none is set
- - both are set to `true`
- - both are set to `false`
+
+- both are set
+- none is set
+- both are set to `true`
+- both are set to `false`
 
 And now add more combinations for more environments.
 

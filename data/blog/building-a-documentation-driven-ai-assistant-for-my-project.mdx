@@ -3,7 +3,7 @@ title: 'Building a Documentation-Driven AI Assistant for my project'
 date: '2025-09-14'
 tags: ['ai', 'documentation', 'development', 'architecture', 'programming']
 draft: false
-summary: "How I stopped repeating myself to Cursor by creating organized documentation that it can reference."
+summary: 'How I stopped repeating myself to Cursor by creating organized documentation that it can reference.'
 ---
 
 ## The Problem I Faced
@@ -38,12 +38,14 @@ My `.cursorrules` file is intentionally minimal—it's just a reference system:
 # Cursor IDE Rules for the project
 
 ## Documentation References
+
 - **Quick Reference**: See docs/RULES-INDEX.md for a complete overview
 - **Coding Standards**: See docs/CODING-GUIDELINE.md for all coding patterns
 - **Architecture**: See docs/ARCHITECTURE.md for component organization
 - **Design**: See docs/DESIGN.md for user experience specifications
 
 ## Rule Sources
+
 All rules are defined in their respective documentation files. This file only references where to find them.
 ```
 
@@ -52,7 +54,9 @@ All rules are defined in their respective documentation files. This file only re
 I organized everything into four focused documents that Cursor can reference:
 
 #### 1. **CODING-GUIDELINE.md** - Development Standards
+
 This captures all the coding patterns I've established:
+
 - **Import Rules**: How I handle imports between packages, apps, and within the same codebase
 - **Naming Conventions**: My file naming, variable, and function patterns
 - **Testing Strategy**: Where I place tests and what I mock vs. what I test directly
@@ -60,21 +64,27 @@ This captures all the coding patterns I've established:
 - **Code Style**: My BiomeJS setup and formatting preferences
 
 #### 2. **ARCHITECTURE.md** - System Design
+
 This documents how I've structured the project:
+
 - **Component Architecture**: How I organize shared vs app-specific components
 - **CRUD Hooks Organization**: My single-file pattern for data operations
 - **Dependency Management**: How my packages relate to each other
 - **Performance Patterns**: Caching and optimization strategies I use
 
 #### 3. **DESIGN.md** - Product Vision
+
 This covers the user experience side:
+
 - **User Flows**: How users will interact with the app
 - **Feature Specifications**: What each feature does and why
 - **UI Patterns**: My design system and component guidelines
 - **Success Metrics**: How I'll measure if the project is working
 
 #### 4. **RULES-INDEX.md** - Quick Reference
+
 A comprehensive index that helps me and Cursor find the right rule quickly:
+
 - **By Task**: "Setting up imports" → points to specific sections
 - **By File Type**: "React components" → relevant rules
 - **Cross-References**: How different rules relate to each other
@@ -86,18 +96,23 @@ My `.cursorcontext` provides the high-level project context, covering descriptio
 ## How This Changed My Development Process
 
 ### 1. **No More Repetition**
+
 I define my rules once in documentation, and Cursor remembers them. When I update a rule, I update it in one place, and Cursor automatically gets the latest version.
 
 ### 2. **Comprehensive Coverage**
+
 Instead of trying to fit everything into `.cursorrules`, I can have detailed, well-organized documentation that covers every aspect of my development process.
 
 ### 3. **Consistent Code Generation**
+
 Cursor now generates code that follows my patterns automatically. Every component, hook, and utility follows the same conventions I've established.
 
 ### 4. **Project Growth**
+
 As my project evolves, I can add new sections to documentation without cluttering the `.cursorrules` file. The system grows with my needs.
 
 ### 5. **Better Focus**
+
 I spend less time explaining patterns and more time building features. Cursor understands my project's DNA.
 
 ## The Real Impact on My Work

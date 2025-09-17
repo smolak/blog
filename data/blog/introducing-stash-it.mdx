@@ -22,20 +22,20 @@ Let's have a look at a simple example:
 
 ```ts
 // 1. Import the main class.
-import { StashIt } from '@stash-it/stash-it';
+import { StashIt } from '@stash-it/stash-it'
 
 // 2. Import an adapter. For this example, let's use the memory adapter.
-import { MemoryAdapter } from '@stash-it/memory-adapter';
+import { MemoryAdapter } from '@stash-it/memory-adapter'
 
 // 3. Stitch them together.
-const stash = new StashIt(new MemoryAdapter());
+const stash = new StashIt(new MemoryAdapter())
 
 // 4. Use it.
-await stash.setItem('key', 'value');
+await stash.setItem('key', 'value')
 
-const item = await stash.getItem('key');
+const item = await stash.getItem('key')
 
-console.log(item.value); // 'value'
+console.log(item.value) // 'value'
 ```
 
 That's it. You have stored a value in memory and retrieved it.
@@ -67,10 +67,10 @@ There are a handful of methods that **stash-it** exposes. They are:
 
 Each of these can be hooked into.
 
-<aside className='py-0.5 px-5 bg-gray-50 dark:bg-gray-800 rounded'>
-    What is this `extra`? It's an _extra_ data you can set on the item. E.g. to store tags for the item, or ttl data.
-    (For more information about the interfaces and types, please head out to the [docs](https://jsr.io/@stash-it) and look
-    out for new posts that will cover the topic)
+<aside className="rounded bg-gray-50 px-5 py-0.5 dark:bg-gray-800">
+  What is this `extra`? It's an _extra_ data you can set on the item. E.g. to store tags for the
+  item, or ttl data. (For more information about the interfaces and types, please head out to the
+  [docs](https://jsr.io/@stash-it) and look out for new posts that will cover the topic)
 </aside>
 
 Each method, when called, goes through a series of steps. These steps are:
@@ -90,22 +90,27 @@ Let's examine `setItem` method:
 class StashIt {
   async setItem(key, value) {
     // 1.
-    const beforeSetItemData = await this.#call(
-      'beforeSetItem', { adapter: this.#adapter, key, value }
-    );
+    const beforeSetItemData = await this.#call('beforeSetItem', {
+      adapter: this.#adapter,
+      key,
+      value,
+    })
 
     // 2.
     const itemSet = await this.#adapter.setItem(
-      await this.buildKey(beforeSetItemData.key), beforeSetItemData.value
-    );
+      await this.buildKey(beforeSetItemData.key),
+      beforeSetItemData.value
+    )
 
     // 3.
-    const afterSetItemData = await this.#call(
-      'afterSetItem', { adapter: this.#adapter, ...beforeSetItemData, item: itemSet }
-    );
+    const afterSetItemData = await this.#call('afterSetItem', {
+      adapter: this.#adapter,
+      ...beforeSetItemData,
+      item: itemSet,
+    })
 
     // 4.
-    return afterSetItemData.item;
+    return afterSetItemData.item
   }
 }
 ```
@@ -176,7 +181,7 @@ const createPrefixPlugin = (prefix: string) => {
       // hence we need to strip the prefix before we do that
       afterSetItem: async (args) => ({
         ...args,
-        item: { ...args.item, key: args.item.key.replace(`${prefix}-`, "") }
+        item: { ...args.item, key: args.item.key.replace(`${prefix}-`, '') },
       }),
 
       // Same goes for getting an item
@@ -185,15 +190,15 @@ const createPrefixPlugin = (prefix: string) => {
         if (args.item) {
           return {
             ...args,
-            item: { ...args.item, key: args.item.key.replace(`${prefix}-`, "") }
-          };
+            item: { ...args.item, key: args.item.key.replace(`${prefix}-`, '') },
+          }
         }
 
-        return args;
+        return args
       },
     },
-  };
-};
+  }
+}
 ```
 
 Now, if two teams use **stash-it** and the same storage, they can use this plugin to avoid key collisions (in the storage),
@@ -201,33 +206,33 @@ but at the same time, use the non-prefixed keys in their code:
 
 ```ts
 // One part of the application
-const stash1 = new StashIt(new AdapterThatSharesStorage());
-const prefixPlugin1 = createPrefixPlugin('team1');
-stash1.registerPlugins([prefixPlugin1]);
+const stash1 = new StashIt(new AdapterThatSharesStorage())
+const prefixPlugin1 = createPrefixPlugin('team1')
+stash1.registerPlugins([prefixPlugin1])
 
 // Another part of the application
-const stash2 = new StashIt(new AdapterThatSharesStorage());
-const prefixPlugin2 = createPrefixPlugin('team2');
-stash2.registerPlugins([prefixPlugin2]);
+const stash2 = new StashIt(new AdapterThatSharesStorage())
+const prefixPlugin2 = createPrefixPlugin('team2')
+stash2.registerPlugins([prefixPlugin2])
 
 // Now, both teams can use the same storage without worrying about key collisions.
 // Also, they can use the same keys, as they are prefixed with a unique string.
 // And the items returned have keys stripped of that prefix. Magic! ;)
 
-await stash1.setItem('key', 'value1'); // stored under 'team1-key'
-await stash2.setItem('key', 'value2'); // stored under 'team2-key'
+await stash1.setItem('key', 'value1') // stored under 'team1-key'
+await stash2.setItem('key', 'value2') // stored under 'team2-key'
 
-const item1 = await stash1.getItem('key');
-const item2 = await stash2.getItem('key');
+const item1 = await stash1.getItem('key')
+const item2 = await stash2.getItem('key')
 
-console.log(item1.value === item2.value); // false
-console.log(item1.value, item2.value); // value1, value2
-console.log(item1.key, item2.key); // key, key
+console.log(item1.value === item2.value) // false
+console.log(item1.value, item2.value) // value1, value2
+console.log(item1.key, item2.key) // key, key
 
-await stash1.removeItem('key');
+await stash1.removeItem('key')
 
-await stash1.hasItem('key'); // false
-await stash2.hasItem('key'); // true
+await stash1.hasItem('key') // false
+await stash2.hasItem('key') // true
 ```
 
 This is a very brief introduction to **stash-it**. But it hopefully gives you an idea of what it is and how it works.
@@ -242,19 +247,23 @@ The project is hosted on [jsr](https://jsr.io) with possibility to be installed 
 There are already several adapters and plugins written for it, and more are coming. And some dev tools as well. At the time of writing this, there are:
 
 ### Main class:
- - [@stash-it/stash-it](https://jsr.io/@stash-it/stash-it)
+
+- [@stash-it/stash-it](https://jsr.io/@stash-it/stash-it)
 
 ### Adapters:
- - [@stash-it/memory-adapter](https://jsr.io/@stash-it/memory-adapter)
- - [@stash-it/sqlite-adapter](https://jsr.io/@stash-it/sqlite-adapter)
- - [@stash-it/redis-adapter](https://jsr.io/@stash-it/redis-adapter)
+
+- [@stash-it/memory-adapter](https://jsr.io/@stash-it/memory-adapter)
+- [@stash-it/sqlite-adapter](https://jsr.io/@stash-it/sqlite-adapter)
+- [@stash-it/redis-adapter](https://jsr.io/@stash-it/redis-adapter)
 
 ### Plugins:
- - [@stash-it/prefix-suffix-plugin](https://jsr.io/@stash-it/prefix-suffix-plugin)
- - [@stash-it/ttl-plugin](https://jsr.io/@stash-it/ttl-plugin)
+
+- [@stash-it/prefix-suffix-plugin](https://jsr.io/@stash-it/prefix-suffix-plugin)
+- [@stash-it/ttl-plugin](https://jsr.io/@stash-it/ttl-plugin)
 
 ### Tools:
- - [@stash-it/dev-tools](https://jsr.io/@stash-it/dev-tools)
+
+- [@stash-it/dev-tools](https://jsr.io/@stash-it/dev-tools)
 
 In the future, I will be sharing more info about the project, and how to use it.
 Like, how to create an adapter, develop a plugin, or deep diving into other parts of the library.

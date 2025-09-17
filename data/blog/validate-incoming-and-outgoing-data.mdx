@@ -20,21 +20,20 @@ Let's say we have a REST endpoint with this functionality:
 // from some other API. The architecture doesn't matter here much.
 // `page` comes from pagination params.
 export const getProducts = async ({ categoryId, page }) => {
-    const products = await httpClient.get(
-        `/products?categoryId=${categoryId}&page=${page}`
-    );
+  const products = await httpClient.get(`/products?categoryId=${categoryId}&page=${page}`)
 
-    // Let's assume we construct a different data type for returned products
-    return createProductsList(products);
+  // Let's assume we construct a different data type for returned products
+  return createProductsList(products)
 }
 ```
 
 There are a couple of problems here:
- - `categoryId` most likely is an enum value, or some unique identifier, of a certain type
-    - what if a different type is used?
-    - or someone sends megabytes long string, imagine having this in logs? (OK, that's a different problem, but still)
- - `page` is expected to be a number, more precisely - an integer, more precisely - a non-negative integer (0 included, or
-    not, depends on the number the first page will have)
+
+- `categoryId` most likely is an enum value, or some unique identifier, of a certain type
+  - what if a different type is used?
+  - or someone sends megabytes long string, imagine having this in logs? (OK, that's a different problem, but still)
+- `page` is expected to be a number, more precisely - an integer, more precisely - a non-negative integer (0 included, or
+  not, depends on the number the first page will have)
 
 OK, that's a no-brainer.
 
@@ -48,9 +47,10 @@ that as well).
 
 If the structure of the returned data from that 3rd party changes, and you use it to compose the returned value, there
 are few things that can happen:
- - your application will still work, as you don't rely on the changed data
- - you will get `undefined` for properties that don't exist anymore (**case 1**)
- - you will get a runtime error if you are reaching deeper to nested properties that don't exist (**case 2**)
+
+- your application will still work, as you don't rely on the changed data
+- you will get `undefined` for properties that don't exist anymore (**case 1**)
+- you will get a runtime error if you are reaching deeper to nested properties that don't exist (**case 2**)
 
 Well, that sucks, doesn't it?
 
@@ -67,41 +67,39 @@ I will use a remarkable TypeScript-first schema declaration and validation libra
 // and a first line of defense - during development.
 // `Payload` and `ProductsList` are inferred from schemas.
 export const getProducts = async (payload: Payload): ProductsList => {
-    // Checking the incoming data, at the boundary of our function.
-    // Using safeParse to eventually `trim` or alike clean some incoming data
-    // before validation.
-    const payloadCheck = payloadSchema.safeParse(payload);
+  // Checking the incoming data, at the boundary of our function.
+  // Using safeParse to eventually `trim` or alike clean some incoming data
+  // before validation.
+  const payloadCheck = payloadSchema.safeParse(payload)
 
-    if (!payloadCheck.success) {
-        // Throw a generic error or however else you want.
-        // Doesn't matter for this example.
-        throw new Error(payloadCheck.error);
-    }
+  if (!payloadCheck.success) {
+    // Throw a generic error or however else you want.
+    // Doesn't matter for this example.
+    throw new Error(payloadCheck.error)
+  }
 
-    // Now we have a guarantee the incoming data is OK.
-    const { categoryId, page } = payloadCheck.data;
+  // Now we have a guarantee the incoming data is OK.
+  const { categoryId, page } = payloadCheck.data
 
-    // Intentionally use a different name, because we don't have a guarantee
-    // of it being what we expect.
-    const maybeProducts = await httpClient.get(
-        `/products?categoryId=${categoryId}&page=${page}`
-    );
+  // Intentionally use a different name, because we don't have a guarantee
+  // of it being what we expect.
+  const maybeProducts = await httpClient.get(`/products?categoryId=${categoryId}&page=${page}`)
 
-    // Another boundary - with an external system
-    const productsListCheck = productsListSchema.safeParse(maybeProducts);
+  // Another boundary - with an external system
+  const productsListCheck = productsListSchema.safeParse(maybeProducts)
 
-    if (!productsListCheck.success) {
-        throw new Error(productsListCheck.error);
-    }
+  if (!productsListCheck.success) {
+    throw new Error(productsListCheck.error)
+  }
 
-    // Again, we have a guarantee that the data is of the correct type.
-    // This time we can even drop the additional function, and use
-    // zod for data transformation.
-    const productsList = productsListCheck.data;
+  // Again, we have a guarantee that the data is of the correct type.
+  // This time we can even drop the additional function, and use
+  // zod for data transformation.
+  const productsList = productsListCheck.data
 
-    // And thus the last boundary is also guaranteed to be covered,
-    // the outgoing one, which goes for cases 1 and 2.
-    return productsList;
+  // And thus the last boundary is also guaranteed to be covered,
+  // the outgoing one, which goes for cases 1 and 2.
+  return productsList
 }
 ```
 
