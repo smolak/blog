@@ -1,0 +1,87 @@
+---
+title: 'When Row Level Security Constraints Led to a Better Architecture'
+date: '2025-10-03'
+tags: ['database', 'security', 'postgresql', 'rls', 'async', 'design', 'architecture']
+draft: false
+summary: "How thinking about database security led to a design breakthrough: sometimes the best solution isn't about making complex scenarios fit your constraints, but changing the architecture entirely."
+---
+
+# Design Insights from Database Security and Async Processing
+
+In TDD, tests won't tell you what the design is supposed to be, but they will make you reason and think about the tested code and how it integrates with the rest of the system. That thinking process often leads you to improve the design itself.
+
+I had a similar "aha" moment yesterday, but with a database schema and its integration with the database itself.
+
+## The Setup: PostgreSQL Connection and Migrations
+
+I'm using a URL connection string for my PostgreSQL database. This connection allows for managing migrations—creating, changing, or dropping tables. While this works perfectly for database evolution during development, it's not the ideal solution for application usage (querying).
+
+## The Better Approach: Row Level Security (RLS)
+
+The proper approach is implementing **Row Level Security (RLS)**. This enables strict restrictions on who can add, update, or delete particular rows of data. For example, changing a user profile should only be allowed only for that specific user.
+
+There are plenty of resources on how to implement RLS, so I won't go into the details here. This is essentially about the **Principle of Least Privilege (PoLP)**, which dictates that users, applications, and services should only be granted the minimum necessary database permissions to perform their specific tasks.
+
+## The Problem: Ownership of Generated Data
+
+But what about rows or tables that don't have a concrete owner?
+
+I encountered a case where adding a row of data (done by a user, so RLS applies) triggers the creation of many more rows of data for other users. Here's the challenge:
+
+- The additional rows are **not owned by the original user**
+- They will be **owned by other users**
+- When the creation happens, I'm in the context of the **current user's connection**, not those other users
+- How do I secure the connection for creating rows that belong to different users?
+
+I could allow adding rows to that table for anyone, but that would violate PoLP and put me back to square one.
+
+## The "Aha" Moment: Asynchronous Processing
+
+The breakthrough came when I realized: **What if those additional rows weren't created synchronously, but asynchronously?**
+
+By using a queue and a separate service, I could use a different database connection—one with appropriate permissions for creating rows on behalf of multiple users. Yes, the rows wouldn't be immediately available, but that's perfectly acceptable for my scenario.
+
+## The Benefits of This Design Change
+
+This architectural shift provides several advantages:
+
+### ✅ Better Security
+
+- **RLS for all user connections** - Every user connection only has access to their own data
+- **Proper separation of concerns** - User operations vs. system operations use different connections
+
+### ✅ Improved Performance
+
+- **Faster user operations** - No blocking while creating multiple rows
+- **Background processing** - Heavy operations don't impact user experience
+- **No transaction locks** - Reduces database contention
+
+### ✅ More Scalable Architecture
+
+- **Queue-based processing** - Can handle spikes in demand
+- **Separate service** - Can be scaled independently
+- **Better error handling** - Failed operations can be retried
+
+## The Trade-off: Added Complexity
+
+Of course, there's no silver bullet. This approach introduces:
+
+- **Queueing system** - Need to implement and maintain a message queue
+- **Async coordination** - Handling eventual consistency
+- **Monitoring** - Tracking background job success/failure
+- **Error handling** - What happens when background jobs fail?
+
+## Key Takeaways
+
+1. **Sometimes the best solution isn't about making complex scenarios fit your constraints**
+2. **Changing the architecture entirely can lead to better security and performance**
+3. **Async processing isn't just about performance—it can solve architectural constraints**
+4. **Every design decision involves trade-offs, and acknowledging them is crucial**
+
+## Conclusion
+
+This experience reinforced something I've learned through TDD: the best solutions often come not from forcing complex scenarios into existing patterns, but from stepping back and rethinking the entire approach.
+
+When you find yourself wrestling with constraints that seem incompatible, consider whether changing the fundamental architecture might lead to a cleaner, more secure, and more performant solution.
+
+The queue-based approach didn't just solve my RLS problem—it improved the overall system design in multiple ways. Sometimes the constraints that seem like obstacles are actually pointing you toward a better solution.
