@@ -1,0 +1,179 @@
+---
+title: 'Building a Provider-Agnostic User System with Clerk and Internal User IDs'
+date: '2025-10-06'
+tags: ['architecture', 'design', 'database', 'authentication']
+draft: false
+summary: "How I built a flexible authentication architecture that doesn't lock me into a single auth provider"
+---
+
+# Building a Provider-Agnostic User System with Clerk and Internal User IDs
+
+## The Problem
+
+When building a web application with an authentication provider, like Clerk (or any other), you face a critical architectural decision: **should you use
+the provider's user ID directly throughout your database, or create your own internal user ID system?**
+
+Using the provider's ID directly is simpler initially, but creates tight coupling. If you ever need to switch authentication providers
+(Clerk → Auth.js, Supabase Auth, etc.), you'd have to update user ID references across every table in your database—a nightmare for any
+production application with foreign key relationships.
+
+For me this was not something I wanted to deal with in the future.
+
+## Implementing Internal User IDs
+
+First, I needed a `users` table that maps Clerk's user ID to my own internal ID:
+
+```typescript
+export const users = pgTable('users', {
+  id: ('id', { length: USER_ID_LENGTH })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => generateUserId()),
+  clerkUserId: varchar('clerk_user_id').unique().notNull(),
+  // ... other fields
+})
+```
+
+## The Sync Challenge
+
+With this architecture, I needed to ensure a user record exists in my database whenever someone authenticates. I explored three approaches:
+
+### Approach 1: Middleware on Every Request
+
+My first attempt was adding some logic to Next.js middleware:
+
+```typescript
+export default clerkMiddleware(async (auth, req) => {
+  const { userId } = await auth()
+
+  if (userId) {
+    await db
+      .insert(schema.users)
+      .values({ clerkUserId: userId })
+      .onConflictDoNothing({ target: schema.users.clerkUserId })
+  }
+})
+```
+
+**Problem**: This executes a database query on every authenticated request, including all API calls. Even though `onConflictDoNothing` is
+relatively fast after the first insert, it's unnecessary overhead.
+
+### Approach 2: Client-Side Callbacks
+
+I considered using Clerk's `afterSignIn`/`afterSignUp` callbacks to trigger user creation:
+
+```typescript
+// After successful sign-in
+await fetch('/api/user/create', { method: 'POST' })
+```
+
+**Problem**: Client-side callbacks can fail—network issues, user navigation, browser crashes—leading to missing user records and broken
+authentication.
+
+### Approach 3: Webhooks
+
+Clerk provides server-side webhooks that fire on user lifecycle events:
+
+```typescript
+// app/api/webhooks/clerk/route.ts
+export async function POST(req: Request) {
+  const wh = new Webhook(WEBHOOK_SECRET)
+  const evt = wh.verify(body, headers)
+
+  if (evt.type === 'user.created') {
+    await db.insert(schema.users).values({ clerkUserId: evt.data.id }).onConflictDoNothing()
+  }
+
+  return new Response('Webhook processed', { status: 200 })
+}
+```
+
+**Benefits**:
+
+- Server-side execution (reliable)
+- Runs once per user (efficient)
+- Official Clerk recommendation
+
+**But what about edge cases?**
+
+- Existing users who signed up before implementing webhooks need migration
+- Webhook delivery failures or endpoint downtime can leave users without database records
+- New signups during deployment might miss the webhook entirely
+
+## The Final Solution
+
+Instead of implementing webhooks with all their complexity, I realized something simpler: I'm using tRPC for all server-side database
+queries. That's exactly where I need the user's ID. Why not handle user creation right there?
+
+This approach solves multiple problems at once:
+
+- Works for existing users (no migration needed)
+- No webhook infrastructure to maintain
+- Handles edge cases automatically
+- Only runs when actually needed (on authenticated tRPC calls)
+
+```typescript
+const isAuthenticated = t.middleware(async ({ ctx, next }) => {
+  const { isAuthenticated, userId: clerkUserId } = ctx.auth
+
+  if (!isAuthenticated || !clerkUserId) {
+    throw new TRPCError({ code: 'UNAUTHORIZED' })
+  }
+
+  // Get or create internal user record
+  const [user] = await ctx.db
+    .insert(ctx.db._.fullSchema.users)
+    .values({ clerkUserId })
+    .onConflictDoUpdate({
+      target: ctx.db._.fullSchema.users.clerkUserId,
+      set: { clerkUserId }, // No-op update to return existing record
+    })
+    .returning()
+
+  if (!user) {
+    throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to get user' })
+  }
+
+  return next({
+    ctx: {
+      userId: user.id, // Internal userId, not Clerk's
+      clerkUserId,
+    },
+  })
+})
+
+export const protectedProcedure = t.procedure.use(isAuthenticated)
+```
+
+## How It Works
+
+**The flow**:
+
+1. User signs up/signs in with Clerk
+2. User makes an authenticated tRPC request
+3. `protectedProcedure` middleware runs:
+   - Checks if user exists in database
+   - Creates user record if missing (using `onConflictDoUpdate`)
+   - Returns internal user ID to the procedure
+4. All tRPC procedures receive the internal user ID in context
+
+**Key benefits**:
+
+- **Simple**: No webhook infrastructure needed
+- **Reliable**: User record is guaranteed to exist for any authenticated tRPC call
+- **Efficient**: Single query using `onConflictDoUpdate` (create or return existing)
+- **No overhead**: Only runs on tRPC calls, not on every page request
+
+## Summarizing
+
+**Use internal IDs when**:
+
+- You might switch auth providers
+- You want provider-agnostic architecture
+- Long-term flexibility > initial simplicity
+
+**Use provider IDs directly when**:
+
+- You're confident in your auth provider choice
+- You prioritize simplicity
+- Provider lock-in is acceptable
