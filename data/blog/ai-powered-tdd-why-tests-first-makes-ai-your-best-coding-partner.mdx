@@ -8,13 +8,13 @@ summary: "AI can generate tons of code, but how do we make sure it's the right c
 
 ## The Problem I Keep Seeing
 
-Everyone's talking about AI generating code. GitHub Copilot, ChatGPT, Claude—they're all getting scary good at writing functions, 
-classes, even entire modules. I see developers either falling into two camps: those who think AI will replace us all, and those 
+Everyone's talking about AI generating code. GitHub Copilot, ChatGPT, Claude—they're all getting scary good at writing functions,
+classes, even entire modules. I see developers either falling into two camps: those who think AI will replace us all, and those
 who refuse to use it because "the code isn't good enough."
 
 Both camps are missing the point.
 
-Here's what I've been experimenting with lately: What if instead of asking AI to write perfect code, we ask it to write 
+Here's what I've been experimenting with lately: What if instead of asking AI to write perfect code, we ask it to write
 code that passes perfect tests?
 
 ## AI's Superpower (And Its Kryptonite)
@@ -32,7 +32,7 @@ But here's where it struggles:
 - **Context awareness** - It doesn't know your business rules or edge cases
 - **Quality judgment** - It can write working code, but is it the _right_ code?
 
-This is where most people get frustrated. They ask AI to "write a user authentication function" and get something that works 
+This is where most people get frustrated. They ask AI to "write a user authentication function" and get something that works
 for the happy path but falls apart when you actually use it in production.
 
 ## The Lightbulb Moment: Tests as Specifications
@@ -103,46 +103,46 @@ After instructing the AI to generate the implementation, I got:
 
 ```typescript
 export function validateUser(user: unknown): boolean {
-  if (!user || typeof user !== "object") {
-    return false;
+  if (!user || typeof user !== 'object') {
+    return false
   }
 
-  const userObj = user as Record<string, unknown>;
+  const userObj = user as Record<string, unknown>
 
   if (!userObj.email || !userObj.name) {
-    return false;
+    return false
   }
 
-  if (userObj.name === "") {
-    return false;
+  if (userObj.name === '') {
+    return false
   }
 
   // Basic email validation - check if it contains @ and has text before and after
-  const emailRegex = /^[^\s@]+@[^\s@]+$/;
-  if (typeof userObj.email !== "string" || !emailRegex.test(userObj.email)) {
-    return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+$/
+  if (typeof userObj.email !== 'string' || !emailRegex.test(userObj.email)) {
+    return false
   }
 
-  return true;
+  return true
 }
 ```
 
 And after telling it to use zod, I got:
 
 ```typescript
-import { z } from "zod";
+import { z } from 'zod'
 
 const userSchema = z.object({
   email: z.email(),
   name: z.string().min(1),
-});
+})
 
 export function validateUser(user: unknown): boolean {
   try {
-    userSchema.parse(user);
-    return true;
+    userSchema.parse(user)
+    return true
   } catch {
-    return false;
+    return false
   }
 }
 ```
@@ -164,7 +164,7 @@ I don't just write happy path tests. I write tests that capture:
 
 ### 2. Let AI Write the Minimal Implementation
 
-I give AI the failing tests and say: 
+I give AI the failing tests and say:
 
 ```code
 Write the minimal code to make the tests pass.
@@ -174,7 +174,7 @@ No extra methods, no additional features, no 'future-proofing' - just the bare m
 
 (you can tweak the rules, see my previous post about [Building a Documentation-Driven AI Assistant for my project](/blog/building-a-documentation-driven-ai-assistant-for-my-project))
 
-The magic happens here. AI doesn't over-engineer because the tests constrain it. It can't add unnecessary features 
+The magic happens here. AI doesn't over-engineer because the tests constrain it. It can't add unnecessary features
 because there are no tests for them and AI is forbidden from creating extra functionality.
 
 ### 3. Refactor with Confidence
@@ -191,11 +191,10 @@ The tests act as a safety net (just like they did without AI, back in the days �
 
 This is crucial. **AI can write implementation, but I own the tests.**
 
-Why? Because tests represent my understanding of the problem. If AI changes the tests, it's changing the requirements, 
+Why? Because tests represent my understanding of the problem. If AI changes the tests, it's changing the requirements,
 and that's where things go sideways.
 
 Think of it this way: tests are the contract. AI is the contractor. I don't let the contractor rewrite the contract.
-
 
 ## Why This Approach Works
 
@@ -209,12 +208,12 @@ AI can write code that passes tests, but I control what "passing" means through 
 
 ### 3. **Iterative Improvement**
 
-I can ask AI to refactor, optimize, or completely rewrite the implementation. As long as tests pass, I know the behavior 
+I can ask AI to refactor, optimize, or completely rewrite the implementation. As long as tests pass, I know the behavior
 is preserved.
 
 ### 4. **Documentation**
 
-Tests become living documentation of how the code should behave. Future developers (including me in 6 months) can 
+Tests become living documentation of how the code should behave. Future developers (including me in 6 months) can
 understand the requirements instantly.
 
 ### 5. **Confidence in Changes**
@@ -258,7 +257,7 @@ If AI's implementation is wrong, don't edit it. Instead, write a test that captu
 
 ### 4. Iterate
 
-Use AI's speed to your advantage. Try different approaches, refactor aggressively, experiment with optimizations. 
+Use AI's speed to your advantage. Try different approaches, refactor aggressively, experiment with optimizations.
 The tests will keep you safe.
 
 The key insight: **AI doesn't make testing less important—it makes testing more important.**
@@ -267,7 +266,7 @@ The key insight: **AI doesn't make testing less important—it makes testing mor
 
 AI is incredibly good at writing code. But code that works isn't the same as code that solves the right problem correctly.
 
-By writing tests first, I turn AI from a code generator into a code partner. I define the problem clearly through tests, 
+By writing tests first, I turn AI from a code generator into a code partner. I define the problem clearly through tests,
 and AI solves it efficiently through implementation.
 
 The result? Better code, faster development, and a lot more confidence in what I ship.
