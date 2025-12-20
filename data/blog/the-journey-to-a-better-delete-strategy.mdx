@@ -1,0 +1,229 @@
+---
+title: 'Pending Deletion: A Middle Ground Between Hard and Soft Delete'
+date: '2025-12-20'
+tags: ['database', 'design', 'architecture', 'postgresql', 'delete', 'patterns']
+draft: false
+summary: 'How a simple request to wrap deletes in a transaction led me down a rabbit hole of soft delete patterns, trade-offs, and ultimately a design that balances simplicity with user safety.'
+---
+
+# It started with a transaction
+
+In a project I'm working on, users create decks—curated collections of URLs they can share and others can follow. When someone deletes a deck, I need to clean up everything: the URLs in that deck, the follower relationships, and the feed entries it generated.
+
+I was looking at the code that handled this, and spotted a problem. Each delete was happening independently:
+
+```typescript
+await db.delete(schema.deckUrls).where(orm.eq(schema.deckUrls.deckId, deckId))
+await db.delete(schema.deckFollows).where(orm.eq(schema.deckFollows.deckId, deckId))
+await db.delete(schema.feeds).where(orm.eq(schema.feeds.deckId, deckId))
+await db.delete(schema.decks).where(orm.eq(schema.decks.id, deckId))
+```
+
+If any of these failed halfway through, I'd end up with orphaned data. Classic problem, simple solution: wrap it in a transaction.
+
+```typescript
+await db.transaction(async (tx) => {
+  await tx.delete(schema.deckUrls).where(orm.eq(schema.deckUrls.deckId, deckId))
+  await tx.delete(schema.deckFollows).where(orm.eq(schema.deckFollows.deckId, deckId))
+  await tx.delete(schema.feeds).where(orm.eq(schema.feeds.deckId, deckId))
+  await tx.delete(schema.decks).where(orm.eq(schema.decks.id, deckId))
+})
+```
+
+Done, right? Well, that's when the real question appeared.
+
+## The soft delete question
+
+What about marking a deck as deleted instead of actually removing it? The infrastructure was there. But should I use it?
+
+## The options
+
+I identified several approaches, each with its own trade-offs.
+
+### Option A: Soft delete only on the decks table
+
+Add `isDeleted` only to the `decks` table. Related tables remain unchanged.
+
+**The good:**
+
+- Minimal schema changes (one table, one column)
+- Automatic cascade effect—marking deck deleted naturally excludes related data
+- Single source of truth for deletion state
+- Perfect restore capability
+
+**The bad:**
+
+- Every query on `deck_urls`, `deck_follows`, `feeds` needs a JOIN to filter by deck's deletion status
+- Easy to forget the join in new queries
+
+### Option B: Soft delete on all related tables
+
+Add `isDeleted` to `decks`, `deck_urls`, `deck_follows`, and `feeds`. Mark all of them when deleting.
+
+**The good:**
+
+- Self-contained queries (no JOINs needed)
+- Better query performance
+- Partial indexes work perfectly on each table
+
+**The bad:**
+
+- Data redundancy—deletion state duplicated across 4 tables
+- Consistency risk—must update all tables atomically
+- Complex restore logic
+- Larger migration (4 tables, 4 columns, 4 indexes)
+- Edge cases—what if `userUrl` is soft-deleted but `deckUrl` isn't?
+
+### Option C: Keep hard delete (with transaction)
+
+The simplest approach. Just wrap the deletes in a transaction and call it a day.
+
+**The good:**
+
+- Simplest implementation—no schema changes, no query changes
+- Clean database—no zombie data accumulating
+- Best performance—smaller tables, no filtering overhead
+
+**The bad:**
+
+- No recovery option—accidental deletion is permanent
+- Lost history—feed entries, follower relationships gone
+
+## The performance question
+
+I was leaning toward soft delete for the recovery benefit. But then I started thinking about performance.
+
+If I soft delete only on the `decks` table, every related query needs a JOIN:
+
+```sql
+SELECT * FROM deck_urls du
+JOIN decks d ON d.id = du.deck_id
+WHERE d.deleted_at IS NULL;
+```
+
+If I soft delete on all tables, queries stay simple but I'm updating many rows in a transaction. Is that better or worse than just deleting them?
+
+Here's the thing: **in PostgreSQL, UPDATE and DELETE have nearly identical performance during the transaction itself.**
+
+Both operations:
+
+- Find matching rows (same)
+- Acquire row-level locks (same)
+- Write to WAL (similar)
+- Create dead tuples due to MVCC\* (same)
+
+\*MVCC (Multi-Version Concurrency Control) is how PostgreSQL handles concurrent access. Instead of modifying rows in place, it creates new versions. Old versions become "dead tuples" that are cleaned up later by vacuum.
+
+The real difference is what happens _after_.
+
+| Approach                   | Table Size Over Time | Index Size                     | Long-term Health |
+| -------------------------- | -------------------- | ------------------------------ | ---------------- |
+| Hard delete                | Stays bounded        | Stays bounded                  | Clean            |
+| Soft delete (no cleanup)   | Grows forever        | Grows (or use partial indexes) | Bloated          |
+| Soft delete (with cleanup) | Temporarily grows    | Partial index stays lean       | Clean            |
+
+## Context matters
+
+At this point, I stepped back and thought about the actual use case.
+
+Deck deletion in my app has these characteristics:
+
+- **Rare operation**—users don't delete decks often (assumption)
+- **Confirmed action**—there's a confirmation dialog (hard to make it a mistake)
+
+Given this context, soft delete started feeling like over-engineering. The recovery feature is less valuable when mistakes are unlikely. The added complexity isn't amortized over many operations.
+
+**YAGNI**. Soft delete adds complexity for a problem already mitigated through UX.
+
+## But then... what if?
+
+What if the deck wasn't deleted immediately? What if it was _marked for deletion_ and then removed after a grace period?
+
+This is different from soft delete. It's a middle ground:
+
+- Not fully soft delete (data is eventually hard deleted)
+- Not immediate hard delete (there's a recovery window)
+
+## The pending deletion pattern
+
+Here's how it works:
+
+**Schema change**: Add one column to `decks`:
+
+```typescript
+scheduledForDeletionAt: timestamp("scheduled_for_deletion_at", { withTimezone: true }),
+```
+
+- `NULL` = active deck
+- `timestamp` = pending deletion, will be hard-deleted after this time
+
+**User flow**:
+
+1. User clicks "Delete Deck"
+2. Deck marked: `scheduledForDeletionAt = now() + 30 minutes`
+3. UI shows: "Deck will be deleted in 30 minutes" with an [Undo] button
+4. User can click "Undo" → sets `scheduledForDeletionAt = NULL`
+5. Background job runs every 5 minutes, finds decks past their scheduled time, hard deletes them
+
+(note, the 30 minutes are simply a window, not an exact time things will happen then, but after that time the user can't do anything)
+
+## Why this approach wins
+
+| Aspect   | Benefit                                           |
+| -------- | ------------------------------------------------- |
+| Recovery | 30-minute undo window for "oops" moments          |
+| Storage  | Eventually hard deleted (clean tables)            |
+| Schema   | Only 1 column on `decks` (not all related tables) |
+| Queries  | Simple—related tables unchanged                   |
+| UX       | Clear expectation ("will be deleted in 30 min")   |
+
+The query changes are minimal. Most queries don't need to change at all—the deck is still "there" during the grace period. Only a few places need updates:
+
+```typescript
+// Public decks listing - hide pending deletions
+const publicDecks = await db.query.decks.findMany({
+  where: (decks, { and, eq, isNull }) =>
+    and(eq(decks.isPublic, true), isNull(decks.scheduledForDeletionAt)),
+})
+
+// Adding URL to deck - block if pending deletion
+if (deck.scheduledForDeletionAt) {
+  throw new TRPCError({
+    code: 'BAD_REQUEST',
+    message: 'Cannot add URLs to a deck scheduled for deletion.',
+  })
+}
+```
+
+## The trade-off
+
+This approach requires a **background job mechanism**. You need something to actually process the scheduled deletions. Options include:
+
+- Cron job (simplest)
+- Message queue (Bull, RabbitMQ)
+- Scheduled functions (Supabase Edge Functions, Vercel Cron)
+- Database triggers with pg_cron
+
+If you don't have background job infrastructure, this might not be worth it. Stick with hard delete and a confirmation dialog.
+
+## The comparison
+
+| Approach                 | Schema Changes | Query Changes | Storage | Recovery  | Complexity |
+| ------------------------ | -------------- | ------------- | ------- | --------- | ---------- |
+| Hard delete              | 0              | 0             | Clean   | None      | Lowest     |
+| Soft delete (decks only) | 1 column       | 8+ files      | Grows   | Unlimited | Medium     |
+| Soft delete (all tables) | 4 columns      | All queries   | Grows   | Unlimited | High       |
+| **Pending deletion**     | 1 column       | Few queries   | Clean   | 30 min    | Low-Medium |
+
+## Conclusion
+
+What started as "wrap these deletes in a transaction" became a deeper exploration of deletion strategies. The journey taught me a few things:
+
+1. **Context drives design**—the right approach depends on how often the operation happens and how risky it is
+2. **UX mitigates risk**—a confirmation dialog changes the calculus of whether you need recovery
+3. **Middle ground exists**—pending deletion gives you recovery without the complexity of full soft delete
+4. **Trade-offs are real**—there's no universally correct approach, just the one that fits your constraints
+
+In my case, I'm going with the pending deletion pattern. It gives users a safety net without bloating my database or complicating every query.
+
+Sometimes the best solution isn't the simplest or the most sophisticated—it's the one that matches your actual needs.
